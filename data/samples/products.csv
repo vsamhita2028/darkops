@@ -1,0 +1,41 @@
+product_id,product_name,category,unit,unit_cost_inr,retail_price_inr,shelf_life_days,baseline_daily_demand,supplier_id
+PRD-01,Tomatoes,produce,kg,40,78,6,22,SUP-02
+PRD-02,Baby spinach,produce,pack,32,55,5,18,SUP-03
+PRD-03,Banana,produce,kg,38,62,7,16,SUP-04
+PRD-04,Potato,produce,kg,28,44,30,20,SUP-05
+PRD-05,Onion,produce,kg,34,52,25,18,SUP-06
+PRD-06,Coriander,produce,bunch,12,22,4,13,SUP-01
+PRD-07,Capsicum,produce,kg,56,85,8,10,SUP-02
+PRD-08,Carrot,produce,kg,42,65,18,12,SUP-03
+DRY-01,Farm fresh milk 500 ml,dairy,unit,28,34,7,42,SUP-02
+DRY-02,Curd 400 g,dairy,unit,31,42,10,25,SUP-03
+DRY-03,Paneer 200 g,dairy,unit,74,99,8,16,SUP-04
+DRY-04,Butter 100 g,dairy,unit,48,62,40,11,SUP-05
+DRY-05,Cheese slices,dairy,pack,82,110,35,9,SUP-06
+DRY-06,Greek yogurt,dairy,unit,56,75,12,8,SUP-01
+DRY-07,Buttermilk,dairy,unit,18,25,5,15,SUP-02
+DRY-08,Fresh cream,dairy,unit,48,66,12,7,SUP-03
+RTE-01,Paneer tikka wrap,ready_meals,unit,70,115,2,12,SUP-02
+RTE-02,Veg biryani bowl,ready_meals,unit,82,135,2,15,SUP-03
+RTE-03,Chicken sandwich,ready_meals,unit,76,129,2,13,SUP-04
+RTE-04,Idli sambar pack,ready_meals,unit,42,72,2,17,SUP-05
+RTE-05,Dal rice bowl,ready_meals,unit,68,110,2,11,SUP-06
+RTE-06,Poha breakfast bowl,ready_meals,unit,38,65,2,10,SUP-01
+RTE-07,Pasta salad,ready_meals,unit,74,125,3,8,SUP-02
+RTE-08,Egg curry meal,ready_meals,unit,78,129,2,9,SUP-03
+PAN-01,Aashirvaad atta 5 kg,pantry,bag,265,329,180,6,SUP-02
+PAN-02,Toor dal 1 kg,pantry,pack,112,149,365,6,SUP-03
+PAN-03,Basmati rice 1 kg,pantry,pack,94,129,365,7,SUP-04
+PAN-04,Cooking oil 1 L,pantry,bottle,128,165,300,8,SUP-05
+PAN-05,Sugar 1 kg,pantry,pack,44,58,365,7,SUP-06
+PAN-06,Salt 1 kg,pantry,pack,18,25,730,5,SUP-01
+PAN-07,Oats 500 g,pantry,pack,78,105,240,5,SUP-02
+PAN-08,Peanut butter,pantry,jar,142,189,240,4,SUP-03
+BEV-01,Orange juice 1 L,beverages,bottle,72,99,90,8,SUP-02
+BEV-02,Cola 750 ml,beverages,bottle,32,45,180,17,SUP-03
+BEV-03,Packaged water 1 L,beverages,bottle,12,20,365,24,SUP-04
+BEV-04,Cold coffee,beverages,bottle,48,69,120,9,SUP-05
+BEV-05,Coconut water,beverages,unit,34,49,45,8,SUP-06
+BEV-06,Green tea 25 bags,beverages,box,118,159,540,3,SUP-01
+BEV-07,Filter coffee 200 g,beverages,pack,96,129,240,5,SUP-02
+BEV-08,Mango drink 600 ml,beverages,bottle,28,39,180,11,SUP-03

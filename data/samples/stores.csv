@@ -1,0 +1,5 @@
+store_id,name,city,area,store_type
+BLR-01,HSR Layout,Bengaluru,HSR Layout,dark_store
+BLR-02,Koramangala,Bengaluru,Koramangala,dark_store
+BLR-03,Whitefield,Bengaluru,Whitefield,dark_store
+BLR-04,Indiranagar,Bengaluru,Indiranagar,dark_store

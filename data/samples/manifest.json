@@ -1,0 +1,17 @@
+{
+  "seed": 17017,
+  "date_start": "2026-08-23",
+  "date_end": "2026-10-17",
+  "row_counts": {
+    "stores": 4,
+    "products": 40,
+    "days": 56,
+    "daily_operations": 8960,
+    "sales": 8960,
+    "purchases": 8959,
+    "wastage": 2126,
+    "returns": 134,
+    "cycle_counts": 1280
+  },
+  "synthetic": true
+}
