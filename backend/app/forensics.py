@@ -124,7 +124,7 @@ class ForensicsService:
         return False, 0.0, None
 
     def index_photo(self, claim_id: str, img: Image.Image, customer_id: str = "CUST-UNKNOWN"):
-        """Indexes newly verified photo into the perceptual vector registry."""
+        """Indexes a photo's perceptual hash for in-process duplicate checks."""
         try:
             phash = self._calculate_dhash(img)
             self.photo_index[claim_id] = {
@@ -145,7 +145,7 @@ class ForensicsService:
         customer_id: str = "CUST-001"
     ) -> ForensicResult:
         """Runs multimodal forensics using Gemini Flash with fallback to deterministic diagnosis."""
-        # 1. Parse Image & run Duplicate Photo Check (Perceptual Vector Search)
+        # 1. Parse image and compare its perceptual hash with known demo claims.
         try:
             pil_image = Image.open(io.BytesIO(image_bytes))
         except Exception as e:
@@ -169,13 +169,13 @@ class ForensicsService:
                 defect_type="Duplicate Claim Photo (Abuse)",
                 severity="High",
                 confidence=0.98,
-                visual_evidence=f"Perceptual embedding match ({similarity}%) against previous claim {matched_claim}.",
+                visual_evidence=f"Perceptual hash similarity ({similarity}%) against previous claim {matched_claim}.",
                 forensic_assessment=f"Customer reused identical image from prior refund ticket {matched_claim}. Pattern matches organized refund abuse across customer accounts.",
                 is_duplicate_photo=True,
                 duplicate_similarity_score=similarity,
                 duplicate_matched_id=matched_claim,
                 action_recommendation="Auto-hold refund for account audit; flag customer profile in fraud registry.",
-                engine="Vertex AI Multimodal Vector Match",
+                engine="Local perceptual hash (dHash)",
             )
 
         # 3. Live Gemini Flash Multimodal Analysis (if API key available)

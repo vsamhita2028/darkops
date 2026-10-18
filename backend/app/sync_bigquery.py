@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 from pathlib import Path
 
 from google.api_core.exceptions import NotFound
@@ -33,11 +34,13 @@ def sync() -> None:
         source = SAMPLE_DIR / f"{table_name}.csv"
         if not source.is_file():
             raise FileNotFoundError(f"Missing generated CSV table: {source}")
+        with source.open(newline="", encoding="utf-8") as file:
+            headers = next(csv.reader(file))
         table_id = f"{dataset_id}.{table_name}"
         job_config = bigquery.LoadJobConfig(
             source_format=bigquery.SourceFormat.CSV,
             skip_leading_rows=1,
-            autodetect=True,
+            schema=[bigquery.SchemaField(column, "STRING") for column in headers],
             write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
         )
         with source.open("rb") as file:

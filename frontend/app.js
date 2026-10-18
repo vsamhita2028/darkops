@@ -141,9 +141,12 @@ async function loadCloudStatus() {
     const status = await request('/api/cloud/status');
     const badge = $('#gcp-pill');
     if (status.project_id) {
-      badge.textContent = `GCP target · ${status.project_id}`;
+      const activeServices = [status.bigquery?.active_data_backend === 'bigquery' ? 'BigQuery' : null,
+        status.firestore?.configured ? 'Firestore' : null,
+        status.vertex_ai?.configured ? 'Vertex AI' : null].filter(Boolean);
+      badge.textContent = `GCP · ${activeServices.join(' · ') || status.project_id}`;
       badge.classList.add('connected');
-      badge.title = `Vertex AI model: ${status.vertex_ai.model}. Gemini analysis only runs when you request it.`;
+      badge.title = `Operations data: ${status.bigquery?.active_data_backend || 'CSV'}; case workflow: ${status.firestore?.configured ? 'Firestore' : 'in memory'}; Gemini model: ${status.vertex_ai.model} (runs on request).`;
     }
   } catch { /* local demo can run without Google Cloud credentials */ }
 }

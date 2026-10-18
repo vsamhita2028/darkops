@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import json
+import os
 from collections import defaultdict
 from datetime import date, timedelta
 from pathlib import Path
@@ -37,6 +38,13 @@ def percent_change(current: float, baseline: float) -> float:
 class OperationsData:
     def __init__(self, sample_dir: Path = SAMPLE_DIR):
         self.sample_dir = sample_dir
+        self.source = "bigquery" if os.getenv("DARKOPS_USE_BIGQUERY", "false").lower() in {"1", "true", "yes"} else "csv"
+        self._bigquery_client = None
+        if self.source == "bigquery":
+            # Keep the demo's deterministic calculations, but source their rows from
+            # the deployed BigQuery dataset rather than the image's bundled CSVs.
+            from backend.app.google_cloud import get_bigquery_client
+            self._bigquery_client = get_bigquery_client()
         self.stores = self._read("stores")
         self.products = self._read("products")
         self.daily = self._read("daily_operations")
@@ -59,6 +67,14 @@ class OperationsData:
         self.issues = self.detect_issues()
 
     def _read(self, name: str) -> list[dict]:
+        if self._bigquery_client is not None:
+            from backend.app.google_cloud import BIGQUERY_DATASET, PROJECT_ID
+            table_id = f"{PROJECT_ID}.{BIGQUERY_DATASET}.{name}"
+            try:
+                rows = self._bigquery_client.query(f"SELECT * FROM `{table_id}`").result()
+                return [{key: "" if value is None else str(value) for key, value in row.items()} for row in rows]
+            except Exception as exc:
+                raise RuntimeError(f"Could not load required BigQuery table {table_id}: {exc.__class__.__name__}") from exc
         path = self.sample_dir / f"{name}.csv"
         if not path.exists():
             raise FileNotFoundError(f"Missing {path}. Generate the sample dataset with `python3 -m data.generator.generate`.")
@@ -287,7 +303,7 @@ class OperationsData:
         tables = {"stores": self.stores, "products": self.products, "daily_operations": self.daily,
                   "sales": self.sales, "purchases": self.purchases, "wastage": self.wastage,
                   "returns": self.returns, "cycle_counts": self.cycle_counts}
-        return {"is_demo": True, "seed": self.manifest.get("seed"), "date_start": min(row["date"] for row in self.daily),
+        return {"is_demo": True, "source": self.source, "seed": self.manifest.get("seed"), "date_start": min(row["date"] for row in self.daily),
                 "date_end": self.last_date.isoformat(), "table_counts": {name: len(rows) for name, rows in tables.items()},
                 "known_scenarios": ["produce over-ordering and wastage", "near-expiry dairy stock", "cycle-count variance",
                                     "supplier-lot return spike", "prepared-meal expiry exposure"]}

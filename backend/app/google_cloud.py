@@ -17,6 +17,7 @@ BIGQUERY_LOCATION = os.getenv("BIGQUERY_LOCATION", "asia-south1").strip()
 BIGQUERY_DATASET = os.getenv("BIGQUERY_DATASET", "darkops_demo").strip()
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite").strip()
 USE_FIRESTORE = os.getenv("DARKOPS_USE_FIRESTORE", "false").lower() in {"1", "true", "yes"}
+USE_BIGQUERY = os.getenv("DARKOPS_USE_BIGQUERY", "false").lower() in {"1", "true", "yes"}
 
 
 def _client_error(name: str, exc: Exception) -> HTTPException:
@@ -113,7 +114,7 @@ def cloud_status() -> dict[str, Any]:
         "project_id": PROJECT_ID or None,
         "location": LOCATION,
         "vertex_ai": {"configured": bool(PROJECT_ID), "model": GEMINI_MODEL, "trigger": "manual per investigation"},
-        "bigquery": {"configured": bool(PROJECT_ID), "dataset": BIGQUERY_DATASET, "active_data_backend": "csv", "purpose": "optional synthetic analytics tables"},
+        "bigquery": {"configured": bool(PROJECT_ID), "dataset": BIGQUERY_DATASET, "active_data_backend": "bigquery" if USE_BIGQUERY else "csv", "purpose": "synthetic operations analytics tables"},
         "firestore": {"configured": bool(PROJECT_ID and USE_FIRESTORE), "collection": "darkops_cases" if USE_FIRESTORE else None},
         "authentication": "Application Default Credentials",
     }

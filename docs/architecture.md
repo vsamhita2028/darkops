@@ -1,16 +1,16 @@
 # DarkOps prototype architecture
 
 ```text
-Seeded generator → CSV operations tables
-            ↓
-FastAPI (CSV loader, deterministic detectors, and case API)
+Seeded generator → CSV operations tables → BigQuery demo dataset
+                                         ↓
+FastAPI (BigQuery row loader, deterministic detectors, and case API)
             ↓
 Static operations dashboard (HTML/CSS/JavaScript)
             ↓
-Manager reviews evidence → records simulated action → checks simulated follow-up
+Manager requests Gemini analysis (Vertex AI) → records simulated action → checks simulated follow-up (Firestore)
 ```
 
-The generator creates four fictional dark stores, 40 products, and 56 days of operations. It writes dimension and event tables to `data/samples/`; pass the same `--seed` and `--as-of` arguments to reproduce the same snapshot. The detectors calculate wastage against a four-week baseline, near-expiry exposure, cycle-count variance, and return-rate changes from those rows. Cases include source-table references so managers can trace the summary back to its data. The frontend renders those calculated metrics. AI is intentionally not a dependency yet: a later Gemini service can interpret bounded evidence after the deterministic baseline is established.
+The generator creates four fictional dark stores, 40 products, and 56 days of operations. It writes dimension and event tables to `data/samples/`; pass the same `--seed` and `--as-of` arguments to reproduce the same snapshot. Those rows are synchronized into BigQuery for the deployed app; local runs default to CSV. The API applies deterministic calculations for wastage, expiry, inventory variance, and returns, then renders the metrics in the frontend. User-requested investigation and image-forensics flows call Gemini through Vertex AI. Workflow changes and AI results persist in Firestore on the deployed app. All business data remains synthetic.
 
 ## Current API
 

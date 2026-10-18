@@ -2,7 +2,7 @@
 
 **Find the cause. Fix the loss.**
 
-DarkOps is an operations intelligence prototype for quick-commerce dark stores. It surfaces wastage, expiry, inventory and returns signals, then connects them to evidence and practical next steps. The demo uses fictional Bengaluru store data: four stores, 40 products and 56 daily periods, with planted operating patterns. Google Cloud integrations provide on-demand Gemini investigation, Firestore persistence for case workflow, and an optional BigQuery copy of the generated tables. Actions and post-action verification are simulated; it does not connect to live store systems.
+DarkOps is an operations intelligence prototype for quick-commerce dark stores. It surfaces wastage, expiry, inventory and returns signals, then connects them to evidence and practical next steps. The demo uses fictional Bengaluru store data: four stores, 40 products and 56 daily periods, with planted operating patterns. In the deployed app, BigQuery supplies the operations tables, Firestore persists case workflow, and Vertex AI Gemini runs user-requested investigations and photo forensics. Actions and post-action verification are simulated; it does not connect to live store systems.
 
 ## Run locally
 
@@ -33,12 +33,12 @@ The project is configured for Google Cloud project `darkops-511815`. The app use
 
 1. Copy `.env.example` to `.env` if you want to override defaults, then authenticate locally with `gcloud auth application-default login`.
 2. Run `bash infrastructure/setup_gcp.sh` to enable required APIs, create the runtime service account if needed, and grant it Vertex AI, Firestore, and BigQuery read/job roles. The script reports if a Firestore database must be created; select/confirm its location before creating it.
-3. To copy the synthetic CSV tables into BigQuery, run `python -m backend.app.sync_bigquery`. This creates dataset `darkops_demo` if missing and replaces the eight demo tables on each sync.
+3. Copy the synthetic CSV tables into BigQuery with `python -m backend.app.sync_bigquery`. This creates dataset `darkops_demo` if missing and replaces the eight demo tables on each sync. The deployed service sets `DARKOPS_USE_BIGQUERY=true`, so its API loads the operations rows from those BigQuery tables. Local runs use CSV by default; set the flag to `true` to use BigQuery locally.
 4. Deploy the Cloud Run service with `bash infrastructure/deploy_cloud_run.sh`. The web shell is reachable so it can present Google sign-in; business API routes require a verified Google ID token held in a short-lived, HttpOnly session cookie. Public auth bootstrap endpoints expose only the OAuth client ID and accept sign-in/logout requests. The runtime continues to use its dedicated service account, scales to zero, and caps at two instances.
 
 Google sign-in uses a **Web application** OAuth client. Add each exact local origin you use to its authorized JavaScript origins (for example, `http://localhost:8000` and `http://127.0.0.1:8001` are different origins), plus the deployed app origin. Set `GOOGLE_OAUTH_CLIENT_ID` in `.env` locally and in the shell before running the deploy script. The sign-in request includes the standard `openid email profile` identity scopes; the backend verifies the Google ID token's signature and audience before creating a one-hour HttpOnly session cookie. The verified Google profile name is displayed as soon as login completes.
 
-Gemini analysis is user-triggered from a case drawer and uses Vertex AI model `gemini-3.1-flash-lite`; model usage can incur charges. Firestore is enabled on the deployed service for case workflow persistence. Locally it remains disabled unless `DARKOPS_USE_FIRESTORE=true` is set. BigQuery currently stores an optional analytics copy; issue detectors continue to use the bundled CSV dataset.
+Case investigation and visual defect/OCR forensics call Vertex AI Gemini only when a user requests analysis; model usage can incur charges. Duplicate-photo comparison currently uses an in-process perceptual hash (dHash), not Vertex AI Vector Search. Firestore is enabled on the deployed service for case workflow persistence. Locally it remains disabled unless `DARKOPS_USE_FIRESTORE=true` is set. The dashboard still calculates its deterministic metrics in the Python API, using rows loaded from BigQuery in the deployed service; CSV remains the reproducible local/demo source.
 
 ## First demo flow
 
