@@ -27,6 +27,57 @@
         <p class="auth-status" id="auth-status" role="status" aria-live="polite">Continue securely with Google.</p>
       </div>
     </div>
+    <div class="how-it-works-modal" id="how-it-works-modal" role="dialog" aria-modal="true" aria-labelledby="hiw-title" hidden>
+      <div class="hiw-card">
+        <button type="button" class="hiw-close" id="hiw-close" aria-label="Close">✕</button>
+        <div class="hiw-header">
+          <div class="hiw-brand-mark"><span class="help-spark" style="font-size:26px;">✳</span></div>
+          <div>
+            <p class="hiw-eyebrow">SYSTEM ARCHITECTURE · DARKOPS INTELLIGENCE</p>
+            <h2 id="hiw-title">How DarkOps Operates</h2>
+            <p class="hiw-subtitle">Next-generation operations intelligence connecting dark-store inventory telemetry with Gemini multimodal forensics.</p>
+          </div>
+        </div>
+
+        <div class="hiw-grid">
+          <div class="hiw-step-card">
+            <div class="hiw-step-num">01</div>
+            <div class="hiw-step-icon">📡</div>
+            <h3>Real-time Signal Ingestion</h3>
+            <p>Aggregates point-of-sale sales, supplier delivery manifests, and store-level SKU waste tickets across quick-commerce dark stores into BigQuery.</p>
+            <div class="hiw-tag">BigQuery &amp; Cloud Storage</div>
+          </div>
+
+          <div class="hiw-step-card">
+            <div class="hiw-step-num">02</div>
+            <div class="hiw-step-icon">🔬</div>
+            <h3>Multimodal AI Forensics</h3>
+            <p>Customer complaint photos and damaged intake batches are inspected by Gemini 2.5 Flash within seconds, detecting packaging punctures, mold, defrosting, or duplicate claim fraud.</p>
+            <div class="hiw-tag highlight">Gemini 2.5 Flash Multimodal</div>
+          </div>
+
+          <div class="hiw-step-card">
+            <div class="hiw-step-num">03</div>
+            <div class="hiw-step-icon">🛡️</div>
+            <h3>Autonomous Guardrails</h3>
+            <p>Triggers immediate systemic remedies: vendor credit memos, supplier lot quarantines, cold-chain audits, and store manager interventions before losses cascade.</p>
+            <div class="hiw-tag">Closed-Loop Guardrails</div>
+          </div>
+        </div>
+
+        <div class="hiw-highlight-box">
+          <strong>⚡ Live Multimodal Demo Active</strong>
+          <p>Try the <b>Photo Forensics Lab</b> to upload custom complaint images or test preloaded scenarios (tomato rot, melted ice cream, crushed produce, expired dairy, repeat claim abuse) for instant AI analysis.</p>
+        </div>
+
+        <div class="hiw-actions">
+          <button type="button" class="button button-dark" id="hiw-goto-forensics">🔬 Launch Photo Forensics Lab</button>
+          <button type="button" class="button button-light" id="hiw-goto-investigations">☷ View Active Investigations</button>
+          <button type="button" class="button button-light" id="hiw-close-btn" style="margin-left:auto;">Got it</button>
+        </div>
+      </div>
+    </div>
+
     <div class="app-shell">
       <aside class="sidebar">
         <a class="brand" href="#overview" aria-label="DarkOps home">
@@ -34,10 +85,80 @@
           <span class="brand-type"><strong>darkops</strong><small>by SHERLOPS</small></span>
         </a>
 
-        <div class="workspace-switcher">
-          <span class="workspace-avatar">B</span>
-          <span class="workspace-copy"><strong>Bengaluru cluster</strong><small>4 active stores</small></span>
-          <svg class="chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>
+        <div class="workspace-switcher-wrap">
+          <button type="button" class="workspace-switcher" id="workspace-switcher" aria-haspopup="true" aria-expanded="false" title="Click to switch cluster or store">
+            <span class="workspace-avatar" id="current-cluster-avatar">B</span>
+            <span class="workspace-copy">
+              <strong id="current-cluster-name">Bengaluru cluster</strong>
+              <small id="current-cluster-stores">4 active stores</small>
+            </span>
+            <svg class="chevron" id="cluster-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>
+          </button>
+
+          <div class="cluster-dropdown" id="cluster-dropdown" hidden>
+            <div class="cluster-dropdown-head">
+              <span>NETWORK CLUSTER &amp; STORES</span>
+            </div>
+
+            <div class="cluster-group">
+              <div class="cluster-group-title">Active Cluster</div>
+              <div class="cluster-item active" id="cluster-item-bengaluru">
+                <div class="cluster-item-header">
+                  <span class="cluster-dot-active"></span>
+                  <strong>Bengaluru Cluster</strong>
+                  <span class="cluster-badge active">Active · 4 Stores</span>
+                </div>
+                <div class="cluster-stores-list">
+                  <button type="button" class="cluster-store-btn active" data-store="" data-store-name="All stores">
+                    <span class="store-dot dot-all">●</span>
+                    <span class="store-btn-name">All Bengaluru Stores</span>
+                    <span class="store-btn-tag">11 Issues</span>
+                  </button>
+                  <button type="button" class="cluster-store-btn" data-store="HSR Layout" data-store-name="HSR Layout">
+                    <span class="store-dot dot-green">●</span>
+                    <span class="store-btn-name">HSR Layout (BLR-01)</span>
+                    <span class="store-btn-tag">3 Issues</span>
+                  </button>
+                  <button type="button" class="cluster-store-btn" data-store="Indiranagar" data-store-name="Indiranagar">
+                    <span class="store-dot dot-green">●</span>
+                    <span class="store-btn-name">Indiranagar (BLR-02)</span>
+                    <span class="store-btn-tag">2 Issues</span>
+                  </button>
+                  <button type="button" class="cluster-store-btn" data-store="Koramangala" data-store-name="Koramangala">
+                    <span class="store-dot dot-warn">●</span>
+                    <span class="store-btn-name">Koramangala (BLR-03)</span>
+                    <span class="store-btn-tag warn">5 Issues</span>
+                  </button>
+                  <button type="button" class="cluster-store-btn" data-store="Whitefield" data-store-name="Whitefield">
+                    <span class="store-dot dot-green">●</span>
+                    <span class="store-btn-name">Whitefield (BLR-04)</span>
+                    <span class="store-btn-tag">1 Issue</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="cluster-group">
+              <div class="cluster-group-title">Upcoming Clusters (Future Work)</div>
+              <div class="cluster-option-card disabled" title="Mumbai cluster integration is planned for future rollout">
+                <span class="cluster-avatar-alt muted">M</span>
+                <div class="cluster-option-copy">
+                  <strong>Mumbai Cluster</strong>
+                  <small>6 dark stores · Western Hub</small>
+                </div>
+                <span class="cluster-badge-future">Future work</span>
+              </div>
+
+              <div class="cluster-option-card disabled" title="Delhi-NCR cluster integration is planned for future rollout">
+                <span class="cluster-avatar-alt muted">D</span>
+                <div class="cluster-option-copy">
+                  <strong>Delhi-NCR Cluster</strong>
+                  <small>5 dark stores · Northern Hub</small>
+                </div>
+                <span class="cluster-badge-future">Future work</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="nav-label">WORKSPACE</div>
@@ -56,7 +177,7 @@
         </nav>
 
         <div class="sidebar-bottom">
-          <div class="help-card"><span class="help-spark">✳</span><strong>Make every unit count.</strong><p>Turn store signals into better decisions.</p><a href="#how-it-works">How DarkOps works <span>↗</span></a></div>
+          <div class="help-card"><span class="help-spark">✳</span><strong>Make every unit count.</strong><p>Turn store signals into better decisions.</p><button type="button" class="help-link-btn" id="how-it-works-btn">How DarkOps works <span>↗</span></button></div>
           <div class="profile-button" id="profile-button" role="button" tabindex="0" title="Profile options"><span class="profile-avatar" id="sidebar-avatar">OL</span><span class="profile-copy"><strong id="sidebar-name">Operations Lead</strong><small id="sidebar-email">ops@darkops.internal</small></span><span class="profile-more">···</span></div>
           <div class="auth-actions-wrap">
             <button class="profile-signout" id="sign-out-button" type="button">Sign out</button>

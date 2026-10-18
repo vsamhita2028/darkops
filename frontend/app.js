@@ -594,7 +594,119 @@ function toggleSeverityFilter() {
   button.parentElement.append(pop);
 }
 
+function setupHowItWorksEvents() {
+  const modal = $('#how-it-works-modal');
+  const openModal = () => {
+    if (modal) modal.hidden = false;
+  };
+  const closeModal = () => {
+    if (modal) modal.hidden = true;
+  };
+
+  $('#how-it-works-btn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    openModal();
+  });
+  $('#hiw-close')?.addEventListener('click', closeModal);
+  $('#hiw-close-btn')?.addEventListener('click', closeModal);
+  modal?.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
+
+  $('#hiw-goto-forensics')?.addEventListener('click', () => {
+    closeModal();
+    const navItem = $('[data-nav="forensics"]');
+    if (navItem) {
+      navItem.click();
+    } else {
+      window.location.hash = '#forensics-lab';
+    }
+  });
+
+  $('#hiw-goto-investigations')?.addEventListener('click', () => {
+    closeModal();
+    const navItem = $('[data-nav="investigations"]');
+    if (navItem) {
+      navItem.click();
+    } else {
+      window.location.hash = '#investigations';
+    }
+  });
+}
+
+function setupWorkspaceSwitcherEvents() {
+  const switcherBtn = $('#workspace-switcher');
+  const dropdown = $('#cluster-dropdown');
+  const chevron = $('#cluster-chevron');
+
+  const toggleDropdown = (open) => {
+    const isOpen = open !== undefined ? open : dropdown?.hidden;
+    if (!dropdown) return;
+    dropdown.hidden = !isOpen;
+    switcherBtn?.setAttribute('aria-expanded', String(isOpen));
+    if (isOpen) {
+      chevron?.classList.add('open');
+    } else {
+      chevron?.classList.remove('open');
+    }
+  };
+
+  switcherBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleDropdown();
+  });
+
+  dropdown?.addEventListener('click', (e) => {
+    const storeBtn = e.target.closest('.cluster-store-btn');
+    if (storeBtn) {
+      const storeVal = storeBtn.dataset.store || '';
+      const storeName = storeBtn.dataset.storeName || 'All stores';
+
+      const filterSelect = $('#store-filter');
+      if (filterSelect) {
+        filterSelect.value = storeVal;
+        filterSelect.dispatchEvent(new Event('change'));
+      }
+
+      $$('.cluster-store-btn').forEach((btn) => btn.classList.remove('active'));
+      storeBtn.classList.add('active');
+
+      const storesSub = $('#current-cluster-stores');
+      if (storesSub) {
+        storesSub.textContent = storeVal ? `${storeName} (Selected)` : '4 active stores';
+      }
+
+      toggleDropdown(false);
+      showToast(storeVal ? `Filtered to ${storeName} store.` : 'Showing all stores in Bengaluru cluster.');
+      return;
+    }
+
+    const futureCluster = e.target.closest('.cluster-option-card.disabled');
+    if (futureCluster) {
+      showToast('ℹ️ Multi-cluster expansion (Mumbai & Delhi-NCR) is scheduled as future work.');
+      return;
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!dropdown || dropdown.hidden) return;
+    if (!e.target.closest('.workspace-switcher-wrap')) {
+      toggleDropdown(false);
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      toggleDropdown(false);
+      const hiwModal = $('#how-it-works-modal');
+      if (hiwModal) hiwModal.hidden = true;
+    }
+  });
+}
+
 function setupEvents() {
+  setupHowItWorksEvents();
+  setupWorkspaceSwitcherEvents();
   $$('.queue-tab').forEach((tab) => tab.addEventListener('click', () => setCategory(tab.dataset.category)));
   $('#issues-body').addEventListener('click', (event) => {
     if (event.target.closest('input[type="checkbox"]')) { event.stopPropagation(); return; }

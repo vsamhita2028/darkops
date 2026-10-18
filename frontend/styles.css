@@ -115,3 +115,70 @@
 .sample-chip.custom-sample-chip:hover{background:#e3effd;border-color:#1a73e8;color:#1557b0}
 .sample-chip.custom-sample-chip.active{background:#1a73e8;border-color:#1a73e8;color:#fff;box-shadow:0 2px 8px rgba(26,115,232,0.25)}
 .forensic-create-case{width:100%;justify-content:center;margin-top:11px;height:35px;font-size:9px}
+
+/* Workspace Switcher & Cluster Dropdown */
+.workspace-switcher-wrap{position:relative;width:100%;margin-bottom:29px}
+button.workspace-switcher{width:100%;height:55px;border:1px solid var(--line);border-radius:9px;display:flex;align-items:center;padding:0 10px;gap:9px;background:#fcfdfa;cursor:pointer;text-align:left;transition:background .15s,border-color .15s;margin-bottom:0}
+button.workspace-switcher:hover{background:#f6f9f3;border-color:#d5ddd3}
+#cluster-chevron{transition:transform .2s ease}
+#cluster-chevron.open{transform:rotate(180deg)}
+
+.cluster-dropdown{position:absolute;top:calc(100% + 6px);left:0;width:264px;background:#fff;border:1px solid #dbe2d8;border-radius:12px;box-shadow:0 18px 48px rgba(18,34,22,.18);padding:12px;z-index:100;animation:slideDown .18s ease-out}
+.cluster-dropdown[hidden]{display:none!important}
+.cluster-dropdown-head{font-size:8px;font-weight:800;letter-spacing:1px;color:#8f9a91;padding:0 4px 8px;border-bottom:1px solid #eef2eb}
+.cluster-group{margin-top:10px}
+.cluster-group-title{font-size:9px;font-weight:700;color:#9aa39c;padding:2px 4px 6px;text-transform:uppercase;letter-spacing:.6px}
+.cluster-item{background:#f9fbf8;border:1px solid #e5ede2;border-radius:8px;padding:8px 8px 6px}
+.cluster-item-header{display:flex;align-items:center;gap:6px;font-size:11px;color:#202b25;margin-bottom:6px}
+.cluster-dot-active{width:6px;height:6px;border-radius:50%;background:#34a853}
+.cluster-badge{margin-left:auto;font-size:8px;font-weight:700;background:#eef4e9;color:#396b44;padding:2px 6px;border-radius:4px}
+.cluster-badge-future{margin-left:auto;font-size:8px;font-weight:700;color:#6b776d;background:#edf2ea;border:1px solid #d5ded2;padding:2px 6px;border-radius:4px;white-space:nowrap}
+
+.cluster-stores-list{display:flex;flex-direction:column;gap:3px}
+.cluster-store-btn{width:100%;border:0;background:transparent;display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:6px;font-size:10px;color:#4f5d54;cursor:pointer;text-align:left;transition:background .12s}
+.cluster-store-btn:hover{background:#eaf2e5;color:#1c2720}
+.cluster-store-btn.active{background:#305e3d;color:#fff;font-weight:600}
+.cluster-store-btn.active .store-btn-tag{background:rgba(255,255,255,.2);color:#fff}
+.store-dot{font-size:8px;line-height:1}
+.store-dot.dot-all{color:#305e3d}
+.cluster-store-btn.active .store-dot{color:#b8f36c}
+.store-dot.dot-green{color:#34a853}
+.store-dot.dot-warn{color:#f2994a}
+.store-btn-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.store-btn-tag{font-size:8px;padding:2px 5px;border-radius:4px;background:#eaf0e6;color:#5a6e5f;flex-shrink:0}
+.store-btn-tag.warn{background:#fff3e0;color:#c05621}
+
+.cluster-option-card.disabled{width:100%;border:1px dashed #dbe3d8;background:#fafbf9;display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:8px;cursor:not-allowed;text-align:left;margin-top:6px;opacity:.78}
+.cluster-avatar-alt.muted{width:26px;height:26px;border-radius:6px;background:#eef1ec;color:#89958b;display:grid;place-items:center;font-size:10px;font-weight:800;flex-shrink:0}
+.cluster-option-copy{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0}
+.cluster-option-copy strong{font-size:10px;color:#354038}
+.cluster-option-copy small{font-size:8px;color:#859087}
+
+/* Help Link Button */
+.help-link-btn{border:0;background:none;padding:0;font:inherit;font-size:10px;color:#3b714a;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px}
+.help-link-btn:hover{color:#20482c;text-decoration:underline}
+
+/* How DarkOps Works Modal */
+.how-it-works-modal{position:fixed;inset:0;z-index:10001;display:grid;place-items:center;padding:20px;background:rgba(17,26,20,.65);backdrop-filter:blur(8px)}
+.how-it-works-modal[hidden]{display:none!important}
+.hiw-card{position:relative;width:min(94vw,760px);max-height:90vh;overflow-y:auto;background:#fff;border:1px solid #dbe2d7;border-radius:18px;box-shadow:0 24px 80px rgba(14,30,19,.28);padding:32px 30px 26px}
+.hiw-close{position:absolute;top:16px;right:16px;width:30px;height:30px;border:0;background:#f1f4ed;color:#59675d;border-radius:50%;font-size:13px;cursor:pointer;display:grid;place-items:center;transition:background .15s}
+.hiw-close:hover{background:#e2e8dc;color:#1c2822}
+.hiw-header{display:flex;align-items:flex-start;gap:14px;margin-bottom:24px}
+.hiw-brand-mark{width:46px;height:46px;border-radius:12px;background:#eff6eb;display:grid;place-items:center;color:#326946;flex-shrink:0}
+.hiw-eyebrow{margin:0 0 4px;font-size:9px;font-weight:800;letter-spacing:1.2px;color:#78867b}
+.hiw-header h2{margin:0 0 6px;font-family:Manrope,sans-serif;font-size:22px;color:#1e2923;font-weight:800}
+.hiw-subtitle{margin:0;font-size:12px;color:#6b7970;line-height:1.5}
+.hiw-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}
+.hiw-step-card{background:#f9fbf8;border:1px solid #e6ede3;border-radius:12px;padding:16px 14px;display:flex;flex-direction:column}
+.hiw-step-num{font-size:9px;font-weight:800;color:#8ca58b;letter-spacing:.8px;margin-bottom:6px}
+.hiw-step-icon{font-size:22px;margin-bottom:8px}
+.hiw-step-card h3{margin:0 0 6px;font-family:Manrope,sans-serif;font-size:13px;font-weight:700;color:#1f2b23}
+.hiw-step-card p{margin:0 0 12px;font-size:11px;color:#6d7a71;line-height:1.5;flex:1}
+.hiw-tag{align-self:flex-start;font-size:8.5px;font-weight:700;padding:3px 7px;border-radius:4px;background:#ebf2e7;color:#356740}
+.hiw-tag.highlight{background:#e8f0fe;color:#1967d2}
+.hiw-highlight-box{background:#eff6ea;border:1px solid #d9e8d4;border-radius:10px;padding:13px 16px;margin-bottom:20px}
+.hiw-highlight-box strong{display:block;font-size:11px;color:#245331;margin-bottom:3px}
+.hiw-highlight-box p{margin:0;font-size:11px;color:#4f6254;line-height:1.5}
+.hiw-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+@media(max-width:700px){.hiw-grid{grid-template-columns:1fr}.hiw-card{padding:24px 18px}}
