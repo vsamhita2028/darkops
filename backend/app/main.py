@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, UploadFile, File, Form, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -19,17 +19,124 @@ from backend.app.google_cloud import (
     load_case_overrides,
     persist_case,
 )
+from backend.app.forensics import forensics_agent, ForensicResult
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = OperationsData()
-ISSUES = [dict(issue) for issue in DATA.issues]
-if USE_FIRESTORE:
-    for issue_id, saved in load_case_overrides().items():
-        issue = next((item for item in ISSUES if item["id"] == issue_id), None)
-        if issue:
-            for field in ("status", "action_record", "gemini_investigation", "verified_at", "updated_at"):
-                if field in saved:
-                    issue[field] = saved[field]
+
+PHOTO_MAPPING = {
+    "DO-2048": {
+        "complaint_photo": "/complaints/rotten_staples_1.jpg",
+        "complaint_text": "Tomatoes arrived rotten, squishy, and mouldy straight out of the delivery bag. Unusable.",
+        "scenario": "Scenario 1: Bad Supplier Batch (B-4471)",
+    },
+    "DO-2047": {
+        "complaint_photo": "/complaints/expired_dairy_frozen_1.jpg",
+        "complaint_text": "Farm fresh milk packet had an expiry date of today and tasted sour. Chilling breach.",
+        "scenario": "Scenario: Near-Expiry Exposure & Temperature Breach",
+    },
+    "DO-2046": {
+        "complaint_photo": "/complaints/crushed_staples_1.jpg",
+        "complaint_text": "Atta bag seam tore during packing; flour leaked inside customer carry bag.",
+        "scenario": "Scenario 4: Packing Station Mechanical Handling",
+    },
+    "DO-2045": {
+        "complaint_photo": "/complaints/crushed_fresh_produce_1.jpg",
+        "complaint_text": "Leaves are wilted and slimy inside sealed packet. Lot SP-884.",
+        "scenario": "Scenario 1: Supplier Batch Quality Spike",
+    },
+    "DO-2044": {
+        "complaint_photo": "/complaints/no_defect_bakery_1.jpg",
+        "complaint_text": "Prepared paneer wrap packaging shows excessive condensation.",
+        "scenario": "Scenario 6: Demand Dip / Potential Red Herring",
+    },
+}
+
+EXTRA_SCENARIOS = [
+    {
+        "id": "DO-2049",
+        "title": "Melted ice cream refund spike across stores",
+        "product": "Amul Chocobar · 70 ml",
+        "category": "Cold chain",
+        "store": "Koramangala",
+        "store_code": "BLR-02",
+        "impact": 9450,
+        "units": "42 refunds",
+        "severity": "High",
+        "status": "Investigating",
+        "age": "12 min ago",
+        "icon": "🍦",
+        "color": "blue",
+        "summary": "42 customers reported completely melted ice cream upon doorstep arrival across Store A and Store B.",
+        "signal": "Refund rate jumped from 0.8% to 14.2% across peak afternoon delivery hours.",
+        "complaint_photo": "/complaints/melted_dairy_frozen_1.jpg",
+        "complaint_text": "The ice cream was completely liquid. Packaging was sticky and leaking.",
+        "scenario": "Scenarios 2 & 3: Failing Freezer vs Slow Zone in Heat",
+        "evidence": [
+            {"label": "Store A (Koramangala)", "value": "-8°C drift", "note": "Freezer F2 temperature sensor", "direction": "bad"},
+            {"label": "Store B (Indiranagar)", "value": "22 min route", "note": "Zone 3 delivery in 38°C heat", "direction": "bad"},
+            {"label": "Batch quality", "value": "Normal", "note": "Whitefield store had 0 melt claims", "direction": "good"},
+        ],
+        "hypotheses": [
+            {"name": "Store A: Chiller Compressor Drift", "score": 88, "detail": "Freezer F2 rose from -18°C to -8°C between 13:00 and 16:30."},
+            {"name": "Store B: Last-Mile Heat Exposure", "score": 84, "detail": "Deliveries to Zone 3 exceeded 18 minutes in 38°C ambient afternoon traffic."},
+            {"name": "Supplier batch defect", "score": 12, "detail": "Same batch IC-9821 delivered to Whitefield had 0 complaints."},
+        ],
+        "recommendation": "Store A: Raise urgent technician maintenance ticket for Freezer F2. Store B: Enforce thermal insulated delivery pouches for Zone 3.",
+        "verification": {"before": 42, "after": 3, "unit": "refunds", "period": "7 days", "source": "Post-maintenance & thermal pouch verification"},
+    },
+    {
+        "id": "DO-2050",
+        "title": "Recycled photo refund abuse across multiple accounts",
+        "product": "Dark Chocolate Slab · 100 g",
+        "category": "Refund fraud",
+        "store": "Indiranagar",
+        "store_code": "BLR-04",
+        "impact": 4800,
+        "units": "9 repeat claims",
+        "severity": "High",
+        "status": "Action needed",
+        "age": "5 min ago",
+        "icon": "🚨",
+        "color": "red",
+        "summary": "Vertex AI Multimodal Embeddings flagged 9 refund claims reusing near-identical photos across 3 customer accounts.",
+        "signal": "98.4% perceptual vector match between claims filed under distinct mobile numbers.",
+        "complaint_photo": "/complaints/abuse/abuse_claim_2.jpg",
+        "complaint_text": "Chocolate arrived melted and squished. Please refund immediately to UPI.",
+        "scenario": "Scenario 5: Refund Abuse (Reused Photo)",
+        "evidence": [
+            {"label": "Embedding match", "value": "98.4%", "note": "Vertex AI Vector Search", "direction": "bad"},
+            {"label": "Accounts involved", "value": "3 accounts", "note": "shared device fingerprint & IP subnet", "direction": "bad"},
+            {"label": "Prior refunds", "value": "₹4,800", "note": "across 9 claims in 14 days", "direction": "bad"},
+        ],
+        "hypotheses": [
+            {"name": "Coordinated Refund Abuse", "score": 98, "detail": "Near-identical cropped photos submitted from different accounts within minutes."},
+            {"name": "Legitimate coincidence", "score": 2, "detail": "Chance of identical visual noise across independent camera captures is < 0.001%."},
+        ],
+        "recommendation": "Auto-hold pending refunds; block promotional refund eligibility on flagged device fingerprint.",
+        "verification": {"before": 9, "after": 0, "unit": "fraud claims", "period": "7 days", "source": "Automated account hold enforcement"},
+    },
+]
+
+def load_initial_issues():
+    rows = [dict(issue) for issue in DATA.issues]
+    for row in rows:
+        mapping = PHOTO_MAPPING.get(row["id"], {})
+        row["complaint_photo"] = mapping.get("complaint_photo", "/complaints/rotten_staples_1.jpg")
+        row["complaint_text"] = mapping.get("complaint_text", row.get("signal", ""))
+        row["scenario"] = mapping.get("scenario", "Operational Anomaly")
+    # Add extra scenarios
+    rows.extend(EXTRA_SCENARIOS)
+    if USE_FIRESTORE:
+        for issue_id, saved in load_case_overrides().items():
+            issue = next((item for item in rows if item["id"] == issue_id), None)
+            if issue:
+                for field in ("status", "action_record", "gemini_investigation", "verified_at", "updated_at", "forensics"):
+                    if field in saved:
+                        issue[field] = saved[field]
+    return rows
+
+ISSUES = load_initial_issues()
 app = FastAPI(title="DarkOps API", version="0.2.0", description="Evidence-backed dark-store operations demo")
 app.add_middleware(
     CORSMiddleware,
@@ -151,6 +258,170 @@ def verify_issue(issue_id: str):
 @app.get("/api/stores")
 def list_stores():
     return DATA.stores
+
+
+# --- GEMINI MULTIMODAL FORENSICS ENDPOINTS ---
+
+SAMPLE_PHOTOS = [
+    {
+        "id": "sample-tomato-rot",
+        "title": "Tomato Rot Spike (Supplier Batch B-4471)",
+        "scenario": "Scenario 1: Bad Supplier Batch",
+        "product": "Local tomatoes · 1 kg",
+        "complaint_text": "Tomatoes arrived rotten, squishy, and mouldy straight out of the delivery bag.",
+        "path": "complaints/rotten_staples_1.jpg",
+        "url": "/complaints/rotten_staples_1.jpg",
+        "expected_defect": "Mouldy / Rot",
+        "batch_code": "B-4471",
+    },
+    {
+        "id": "sample-icecream-melt",
+        "title": "Melted Ice Cream (Freezer F2 vs Hot Zone 3)",
+        "scenario": "Scenarios 2 & 3: Cold-Chain Breaches",
+        "product": "Amul Chocobar · 70 ml",
+        "complaint_text": "Ice cream was completely melted into liquid soup upon delivery. Unacceptable!",
+        "path": "complaints/melted_dairy_frozen_1.jpg",
+        "url": "/complaints/melted_dairy_frozen_1.jpg",
+        "expected_defect": "Melted",
+        "batch_code": "IC-9821",
+    },
+    {
+        "id": "sample-crushed-pack",
+        "title": "Crushed Eggs & Broken Pack",
+        "scenario": "Scenario 4: Packing Station Mechanical Failure",
+        "product": "Farm eggs · 6 pack",
+        "complaint_text": "Carton was crushed inside the bag, egg shells smashed and leaking everywhere.",
+        "path": "complaints/crushed_fresh_produce_1.jpg",
+        "url": "/complaints/crushed_fresh_produce_1.jpg",
+        "expected_defect": "Crushed / Damaged",
+        "batch_code": "EG-1104",
+    },
+    {
+        "id": "sample-expired-dairy",
+        "title": "Expired Milk (FIFO Picking Error)",
+        "scenario": "Near-Expiry Exposure",
+        "product": "Farm fresh milk · 500 ml",
+        "complaint_text": "Milk was delivered with today's expiry date and smelled sour immediately.",
+        "path": "complaints/expired_dairy_frozen_1.jpg",
+        "url": "/complaints/expired_dairy_frozen_1.jpg",
+        "expected_defect": "Expired",
+        "batch_code": "MK-8820",
+    },
+    {
+        "id": "sample-abuse-claim-1",
+        "title": "Original Claim (Customer A)",
+        "scenario": "Scenario 5: Refund Abuse (Base Photo)",
+        "product": "Dark Chocolate Slab · 100 g",
+        "complaint_text": "Chocolate melted and crushed in heat.",
+        "path": "complaints/abuse/abuse_claim_1.jpg",
+        "url": "/complaints/abuse/abuse_claim_1.jpg",
+        "expected_defect": "Melted",
+        "batch_code": "CH-5512",
+    },
+    {
+        "id": "sample-abuse-claim-2",
+        "title": "Duplicate Photo Claim (Customer B)",
+        "scenario": "Scenario 5: Refund Abuse (Reused Photo)",
+        "product": "Dark Chocolate Slab · 100 g",
+        "complaint_text": "Chocolate melted. Need refund to UPI.",
+        "path": "complaints/abuse/abuse_claim_2.jpg",
+        "url": "/complaints/abuse/abuse_claim_2.jpg",
+        "expected_defect": "Duplicate Claim Photo (Abuse)",
+        "batch_code": "CH-5512",
+    },
+    {
+        "id": "sample-no-defect",
+        "title": "Bread Order (Customer False Alarm)",
+        "scenario": "Scenario 6: Red Herring (No Defect)",
+        "product": "Brown bread · 400 g",
+        "complaint_text": "Customer claimed bread was stale, but seal is intact.",
+        "path": "complaints/no_defect_bakery_1.jpg",
+        "url": "/complaints/no_defect_bakery_1.jpg",
+        "expected_defect": "No Defect Found",
+        "batch_code": "BR-9011",
+    },
+]
+
+
+@app.get("/api/forensics/samples")
+def list_forensic_samples():
+    """Returns preset complaint photos for testing Gemini photo forensics."""
+    return SAMPLE_PHOTOS
+
+
+@app.post("/api/forensics/analyze-sample")
+async def analyze_sample_photo(payload: dict = Body(...)):
+    """Runs Gemini multimodal forensics on a preset sample image."""
+    sample_id = payload.get("sample_id")
+    sample = next((s for s in SAMPLE_PHOTOS if s["id"] == sample_id), None)
+    if not sample:
+        raise HTTPException(status_code=404, detail="Sample photo not found")
+
+    image_path = ROOT / "frontend" / sample["path"]
+    if not image_path.exists():
+        raise HTTPException(status_code=404, detail=f"Image file missing on disk: {sample['path']}")
+
+    image_bytes = image_path.read_bytes()
+    result = await forensics_agent.analyze_photo(
+        image_bytes=image_bytes,
+        filename=image_path.name,
+        complaint_text=sample.get("complaint_text", ""),
+        product_name=sample.get("product", ""),
+        claim_id=sample.get("id"),
+        customer_id=payload.get("customer_id", "CUST-DEMO"),
+    )
+    return {"sample": sample, "forensic_result": result.model_dump()}
+
+
+@app.post("/api/forensics/analyze-upload")
+async def analyze_uploaded_photo(
+    file: UploadFile = File(...),
+    complaint_text: str = Form(""),
+    product_name: str = Form(""),
+    claim_id: str = Form(None),
+    customer_id: str = Form("CUST-LIVE"),
+):
+    """Runs Gemini multimodal forensics on any user-uploaded image."""
+    image_bytes = await file.read()
+    result = await forensics_agent.analyze_photo(
+        image_bytes=image_bytes,
+        filename=file.filename or "upload.jpg",
+        complaint_text=complaint_text,
+        product_name=product_name,
+        claim_id=claim_id,
+        customer_id=customer_id,
+    )
+    return {"filename": file.filename, "forensic_result": result.model_dump()}
+
+
+@app.post("/api/issues/{issue_id}/forensics")
+async def run_issue_forensics(issue_id: str):
+    """Runs or retrieves forensics for a specific operational investigation case."""
+    issue = next((item for item in ISSUES if item["id"] == issue_id), None)
+    if not issue:
+        raise HTTPException(status_code=404, detail="Investigation not found")
+
+    photo_path = issue.get("complaint_photo")
+    if not photo_path:
+        # Default assignment if not already mapped
+        photo_path = "/complaints/rotten_staples_1.jpg"
+
+    clean_path = photo_path.lstrip("/")
+    image_path = ROOT / "frontend" / clean_path
+    if not image_path.exists():
+        image_bytes = b""
+    else:
+        image_bytes = image_path.read_bytes()
+
+    result = await forensics_agent.analyze_photo(
+        image_bytes=image_bytes,
+        filename=image_path.name,
+        complaint_text=issue.get("complaint_text", issue.get("signal", "")),
+        product_name=issue.get("product", ""),
+        claim_id=issue["id"],
+    )
+    issue["forensics"] = result.model_dump()
+    return {"issue_id": issue_id, "forensic_result": result.model_dump()}
 
 
 app.mount("/", StaticFiles(directory=ROOT / "frontend", html=True), name="frontend")

@@ -156,6 +156,38 @@ function showToast(message) {
   showToast.timer = setTimeout(() => toast.classList.remove('show'), 2600);
 }
 
+function renderDrawerForensics(f) {
+  if (!f) return '';
+  const isAbuse = f.is_duplicate_photo || (f.defect_type && f.defect_type.includes('Abuse'));
+  const pillClass = isAbuse ? 'abuse' : (f.defect_type || '').toLowerCase().includes('rot') ? 'rot' : (f.defect_type || '').toLowerCase().includes('melt') ? 'melt' : (f.defect_type || '').toLowerCase().includes('crush') ? 'crushed' : (f.defect_type || '').toLowerCase().includes('expire') ? 'expired' : 'clean';
+  return `<div class="forensics-result-panel" style="padding:11px; margin-top:8px;">
+    <div class="forensics-result-header" style="padding-bottom:8px;">
+      <div>
+        <span class="defect-pill ${pillClass}">● ${esc(f.defect_type)}</span>
+        <div style="font-size:8px; color:#859087; margin-top:3px;">Severity: <b>${esc(f.severity)}</b> · ${esc(f.engine || 'Gemini 2.5 Flash')}</div>
+      </div>
+      <div class="confidence-box">
+        <strong style="color:${f.confidence >= 0.8 ? '#2e6b3b' : '#ba7818'};">${Math.round(f.confidence * 100)}%</strong>
+        <span>Confidence</span>
+      </div>
+    </div>
+    <div class="forensics-meta-tags" style="margin-top:6px;">
+      ${f.batch_code_ocr ? `<span class="meta-tag ocr">🏷️ <strong>Batch OCR:</strong> ${esc(f.batch_code_ocr)}</span>` : ''}
+      ${f.expiry_date_ocr ? `<span class="meta-tag">📅 <strong>Expiry:</strong> ${esc(f.expiry_date_ocr)}</span>` : ''}
+      ${isAbuse ? `<span class="meta-tag fraud-flag">🚨 <strong>Vector Similarity:</strong> ${esc(f.duplicate_similarity_score)}% (${esc(f.duplicate_matched_id)})</span>` : ''}
+    </div>
+    <div class="reasoning-box" style="margin-top:6px; font-size:8.5px;">
+      <h4>Forensic Findings</h4>
+      <p style="margin:0 0 4px;">${esc(f.visual_evidence)}</p>
+      <p style="margin:0; color:#3b483f;"><strong>Assessment:</strong> ${esc(f.forensic_assessment)}</p>
+    </div>
+    <div class="action-guardrail-box" style="margin-top:6px; font-size:8.5px;">
+      <strong>🛡️ Guardrail Recommendation</strong>
+      <p>${esc(f.action_recommendation)}</p>
+    </div>
+  </div>`;
+}
+
 function drawerMarkup(issue) {
   const evidence = (issue.evidence || []).map((item) => `<div class="evidence-card"><span>${esc(item.label)}</span><strong class="${item.direction === 'bad' ? 'bad' : item.direction === 'good' ? 'good' : ''}">${esc(item.value)}</strong><small>${esc(item.note)}</small></div>`).join('');
   const hypotheses = (issue.hypotheses || []).map((item) => `<div class="hypothesis"><div class="hypothesis-top"><span>${esc(item.name)}</span><span class="hypothesis-score">${esc(item.score)} signal</span></div><div class="hypothesis-bar"><i style="width:${Math.max(0, Math.min(100, Number(item.score)))}%"></i></div><p>${esc(item.detail)}</p></div>`).join('');
@@ -175,6 +207,28 @@ function drawerMarkup(issue) {
     <div class="drawer-title-row"><span class="issue-icon ${esc(issue.color)}">${esc(issue.icon || iconFor(issue.category))}</span><div><h2>${esc(issue.title)}</h2><p>${esc(issue.product)}</p></div></div>
     <div class="drawer-meta"><span class="status-pill ${issue.status.toLowerCase().replace(/\s+/g, '-')}">${esc(issue.status)}</span><span class="meta-sep"></span><span class="drawer-store"><i class="table-store-dot">${esc(issue.store.charAt(0))}</i>${esc(issue.store)} · ${esc(issue.store_code)}</span><span class="meta-sep"></span><span>${esc(issue.age || 'Just now')}</span></div>
     <div class="drawer-loss-card"><div><span>Estimated loss identified</span><strong>${money(issue.impact)}</strong></div><small>${esc(issue.units)}<br/>at current cost</small></div>
+    
+    <section class="drawer-section">
+      <div class="drawer-section-head"><h3>Customer complaint &amp; photo evidence</h3><span>FORENSICS</span></div>
+      <div style="background:#fff; border:1px solid #e7ede5; border-radius:8px; overflow:hidden; margin-bottom:8px;">
+        <div style="position:relative; height:180px; background:#1c2620; display:flex; align-items:center; justify-content:center;">
+          <img src="${esc(issue.complaint_photo || '/complaints/rotten_staples_1.jpg')}" style="width:100%; height:100%; object-fit:cover;" alt="Complaint photo" />
+          <span style="position:absolute; bottom:8px; left:8px; background:rgba(0,0,0,0.75); color:#fff; font-size:8px; font-weight:600; padding:3px 7px; border-radius:4px;">
+            ${esc(issue.scenario || 'Customer Refund Ticket')}
+          </span>
+        </div>
+        <div style="padding:10px 12px; font-size:9.5px; color:#4a574e; border-top:1px solid #eef2ec; line-height:1.45;">
+          <strong style="color:#28332a; display:block; margin-bottom:2px;">Customer note:</strong> "${esc(issue.complaint_text || issue.signal)}"
+        </div>
+      </div>
+      ${issue.forensics ? renderDrawerForensics(issue.forensics) : `
+        <button class="button button-light" style="width:100%; justify-content:center; gap:6px; font-size:9px;" data-run-forensics="${esc(issue.id)}">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="#4285F4"/></svg>
+          Run Gemini Multimodal Forensic Analysis
+        </button>
+      `}
+    </section>
+
     <section class="drawer-section"><div class="drawer-section-head"><h3>Why this was flagged</h3><span>Rule-based signal</span></div><div class="signal-box">${esc(issue.signal || issue.summary)}</div></section>
     <section class="drawer-section"><div class="drawer-section-head"><h3>Supporting evidence</h3><span>Calculated from generated records</span></div><div class="evidence-grid">${evidence}</div><div class="evidence-sources"><span>DATA SOURCES</span>${(issue.evidence_refs || []).map((source) => `<code>${esc(source)}</code>`).join('')}</div></section>
     <section class="drawer-section"><div class="drawer-section-head"><h3>Likely root causes</h3><span>Ranked by evidence fit</span></div>${hypotheses}<button class="button button-light drawer-action" id="run-gemini" data-investigate="${esc(issue.id)}">✳ Analyze with Gemini</button><p class="ai-note">Sends this case’s synthetic evidence to Vertex AI. Model usage may incur Google Cloud charges.</p>${aiResult}</section>
@@ -297,14 +351,70 @@ function setupEvents() {
   $('#issues-body').addEventListener('keydown', (event) => { if ((event.key === 'Enter' || event.key === ' ') && event.target.matches('tr[data-issue]')) openIssue(event.target.dataset.issue); });
   $('#drawer-close').addEventListener('click', closeDrawer);
   $('#drawer-backdrop').addEventListener('click', closeDrawer);
-  $('#drawer-content').addEventListener('click', (event) => {
-    const action = event.target.closest('[data-action]');
-    const verify = event.target.closest('[data-verify]');
+  $('#drawer-content').addEventListener('click', async (event) => {
     const investigate = event.target.closest('[data-investigate]');
+    const runForensics = event.target.closest('[data-run-forensics]');
     if (action && !action.disabled) recordAction(action.dataset.action);
     if (verify) verifyIssue(verify.dataset.verify);
     if (investigate) investigateWithGemini(investigate.dataset.investigate, investigate);
+    if (runForensics) {
+      const btn = runForensics;
+      btn.disabled = true;
+      btn.innerHTML = `<span class="status-dot" style="background:#4285F4; animation:pulse-red 1s infinite;"></span> Running Gemini Forensics...`;
+      try {
+        const data = await request(`/api/issues/${encodeURIComponent(btn.dataset.runForensics)}/forensics`, { method: 'POST' });
+        showToast('Gemini Multimodal Forensic Analysis completed.');
+        await refreshSelected(btn.dataset.runForensics);
+      } catch (err) {
+        btn.disabled = false;
+        btn.innerHTML = `⚠️ Forensics error: ${esc(err.message)}`;
+      }
+    }
   });
+
+  // Forensics Lab sample chip selection
+  $('#sample-chips-wrap')?.addEventListener('click', (event) => {
+    const chip = event.target.closest('[data-sample-id]');
+    if (chip) selectSample(chip.dataset.sampleId);
+  });
+
+  // Custom photo upload
+  $('#custom-photo-upload')?.addEventListener('change', async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const displayImg = $('#forensics-display-img');
+    displayImg.src = URL.createObjectURL(file);
+    $('#forensics-img-label').textContent = 'Live Uploaded Photo';
+    $('#forensics-product-label').textContent = file.name;
+    $('#forensics-complaint-quote').textContent = 'Custom customer complaint photo uploaded for live Gemini multimodal inspection.';
+
+    const resultContainer = $('#forensics-result-panel');
+    resultContainer.innerHTML = `
+      <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:180px; gap:8px; color:#5c6e61;">
+        <div class="status-dot" style="width:10px; height:10px; background:#4285F4; animation:pulse-red 1s infinite;"></div>
+        <span style="font-size:10px; font-weight:600;">Gemini 2.5 Flash inspecting uploaded image &amp; running vector duplicate check...</span>
+      </div>
+    `;
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('complaint_text', 'Customer photo submission');
+
+    try {
+      const response = await fetch('/api/forensics/analyze-upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || 'Upload failed');
+      renderForensicsPanel(data.forensic_result);
+      showToast('Custom photo analyzed by Gemini Flash.');
+    } catch (err) {
+      resultContainer.innerHTML = `<div style="color:#bd4444; font-size:10px;">Upload analysis failed: ${esc(err.message)}</div>`;
+    }
+  });
+
   $('#search-input').addEventListener('input', (event) => { state.query = event.target.value.trim(); renderIssues(); });
   $('#store-filter').addEventListener('change', async (event) => {
     state.store = event.target.value;
@@ -337,14 +447,121 @@ function setupEvents() {
   }));
   $$('.nav-item').forEach((item) => item.addEventListener('click', (event) => {
     const target = item.dataset.nav;
-    if (target !== 'overview' && target !== 'investigations') { event.preventDefault(); showToast(`${item.textContent.trim()} is coming in the next milestone.`); return; }
+    if (target !== 'overview' && target !== 'investigations' && target !== 'forensics') { event.preventDefault(); showToast(`${item.textContent.trim()} is coming in the next milestone.`); return; }
     $$('.nav-item').forEach((nav) => nav.classList.toggle('active', nav === item));
-    $('#breadcrumb-current').textContent = target === 'overview' ? 'Overview' : 'Investigations';
-    if (target === 'investigations') document.querySelector('#investigations').scrollIntoView({ behavior: 'smooth' });
+    $('#breadcrumb-current').textContent = target === 'overview' ? 'Overview' : target === 'forensics' ? 'Photo Forensics' : 'Investigations';
+    if (target === 'investigations') document.querySelector('#investigations')?.scrollIntoView({ behavior: 'smooth' });
+    else if (target === 'forensics') document.querySelector('#forensics-lab')?.scrollIntoView({ behavior: 'smooth' });
     else window.scrollTo({ top: 0, behavior: 'smooth' });
   }));
   document.addEventListener('keydown', (event) => { if (event.key === 'Escape') { closeDrawer(); $('#severity-popover')?.remove(); } });
 }
 
+let forensicsSamples = [];
+let activeSample = null;
+
+async function loadForensics() {
+  try {
+    forensicsSamples = await request('/api/forensics/samples');
+    renderSampleChips();
+    if (forensicsSamples.length > 0) {
+      selectSample(forensicsSamples[0].id);
+    }
+  } catch (err) {
+    console.error('Failed to load forensics samples:', err);
+  }
+}
+
+function renderSampleChips() {
+  const container = $('#sample-chips-wrap');
+  if (!container) return;
+  const icons = {
+    'sample-tomato-rot': '🍅',
+    'sample-icecream-melt': '🍦',
+    'sample-crushed-pack': '🥚',
+    'sample-expired-dairy': '🥛',
+    'sample-abuse-claim-1': '🍫',
+    'sample-abuse-claim-2': '🚨',
+    'sample-no-defect': '🥖'
+  };
+  container.innerHTML = forensicsSamples.map((s, idx) => `
+    <button type="button" class="sample-chip ${idx === 0 ? 'active' : ''}" data-sample-id="${esc(s.id)}">
+      <span>${icons[s.id] || '📷'}</span> ${esc(s.title)}
+    </button>
+  `).join('');
+}
+
+async function selectSample(sampleId) {
+  const sample = forensicsSamples.find((s) => s.id === sampleId);
+  if (!sample) return;
+  activeSample = sample;
+
+  $$('.sample-chip').forEach((c) => c.classList.toggle('active', c.dataset.sampleId === sampleId));
+  $('#forensics-display-img').src = sample.url;
+  $('#forensics-img-label').textContent = sample.scenario;
+  $('#forensics-product-label').textContent = sample.product;
+  $('#forensics-complaint-quote').textContent = `"${sample.complaint_text}"`;
+
+  const resultContainer = $('#forensics-result-panel');
+  resultContainer.innerHTML = `
+    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:180px; gap:8px; color:#5c6e61;">
+      <div class="status-dot" style="width:10px; height:10px; background:#4285F4; animation:pulse-red 1s infinite;"></div>
+      <span style="font-size:10px; font-weight:600;">Gemini 2.5 Flash analyzing visual features, defect classification &amp; OCR...</span>
+    </div>
+  `;
+
+  try {
+    const data = await request('/api/forensics/analyze-sample', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sample_id: sampleId })
+    });
+    renderForensicsPanel(data.forensic_result);
+  } catch (err) {
+    resultContainer.innerHTML = `<div style="color:#bd4444; font-size:10px;">Failed to analyze photo: ${esc(err.message)}</div>`;
+  }
+}
+
+function renderForensicsPanel(f) {
+  const resultContainer = $('#forensics-result-panel');
+  if (!resultContainer) return;
+  const isAbuse = f.is_duplicate_photo || (f.defect_type && f.defect_type.includes('Abuse'));
+  const pillClass = isAbuse ? 'abuse' : (f.defect_type || '').toLowerCase().includes('rot') ? 'rot' : (f.defect_type || '').toLowerCase().includes('melt') ? 'melt' : (f.defect_type || '').toLowerCase().includes('crush') ? 'crushed' : (f.defect_type || '').toLowerCase().includes('expire') ? 'expired' : 'clean';
+
+  resultContainer.innerHTML = `
+    <div class="forensics-result-header">
+      <div>
+        <span class="defect-pill ${pillClass}">● ${esc(f.defect_type)}</span>
+        <div style="font-size:8.5px; color:#859087; margin-top:4px;">
+          Severity Grade: <strong style="color:#2a362f;">${esc(f.severity)}</strong> · Engine: <b>${esc(f.engine || 'Gemini 2.5 Flash')}</b>
+        </div>
+      </div>
+      <div class="confidence-box">
+        <strong style="color:${f.confidence >= 0.8 ? '#2e6b3b' : '#ba7818'};">${Math.round(f.confidence * 100)}%</strong>
+        <span>Confidence</span>
+      </div>
+    </div>
+
+    <div class="forensics-meta-tags">
+      ${f.batch_code_ocr ? `<span class="meta-tag ocr">🏷️ <strong>Batch Code OCR:</strong> ${esc(f.batch_code_ocr)}</span>` : '<span class="meta-tag">🏷️ Batch OCR: Not legible</span>'}
+      ${f.expiry_date_ocr ? `<span class="meta-tag">📅 <strong>Expiry OCR:</strong> ${esc(f.expiry_date_ocr)}</span>` : ''}
+      ${isAbuse ? `<span class="meta-tag fraud-flag">🚨 <strong>Vector Duplicate:</strong> ${esc(f.duplicate_similarity_score)}% (${esc(f.duplicate_matched_id)})</span>` : '<span class="meta-tag" style="color:#2e6b3b;">✓ Original Photo (No duplicate)</span>'}
+    </div>
+
+    <div class="reasoning-box">
+      <h4>Visual Evidence Observed</h4>
+      <p style="margin:0 0 6px;">${esc(f.visual_evidence)}</p>
+      <h4 style="margin-top:6px;">Diagnostic Assessment</h4>
+      <p style="margin:0; color:#3b483f;"><strong>Root cause signal:</strong> ${esc(f.forensic_assessment)}</p>
+    </div>
+
+    <div class="action-guardrail-box">
+      <strong>🛡️ Autonomous Guardrail Recommendation</strong>
+      <p>${esc(f.action_recommendation)}</p>
+    </div>
+  `;
+}
+
 setupEvents();
 loadData();
+loadForensics();

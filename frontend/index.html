@@ -28,7 +28,8 @@
         <div class="nav-label">WORKSPACE</div>
         <nav class="main-nav" aria-label="Main navigation">
           <a href="#overview" class="nav-item active" data-nav="overview"><span class="nav-icon">⌂</span><span>Overview</span></a>
-          <a href="#investigations" class="nav-item" data-nav="investigations"><span class="nav-icon nav-lines">☷</span><span>Investigations</span><span class="nav-count" id="nav-count">05</span></a>
+          <a href="#investigations" class="nav-item" data-nav="investigations"><span class="nav-icon nav-lines">☷</span><span>Investigations</span><span class="nav-count" id="nav-count">07</span></a>
+          <a href="#forensics-lab" class="nav-item" data-nav="forensics"><span class="nav-icon">🔬</span><span>Photo Forensics</span><span class="nav-count" style="background:#e8f0fe; color:#1967d2;">AI</span></a>
           <a href="#inventory" class="nav-item" data-nav="inventory"><span class="nav-icon">▤</span><span>Inventory health</span></a>
           <a href="#waste" class="nav-item" data-nav="waste"><span class="nav-icon">◉</span><span>Waste &amp; returns</span></a>
         </nav>
@@ -90,8 +91,54 @@
                 <div class="store-row"><div class="store-initial initial-green">I</div><div class="store-name"><strong>Indiranagar</strong><span>BLR-04</span></div><div class="store-rate"><strong>4.1%</strong><span class="trend up tiny">↑ 1.2%</span></div><div class="store-bar"><i class="bar-high" style="width:82%"></i></div></div>
               </div>
               <div class="store-panel-foot"><span>Network average</span><strong>3.2%</strong><a href="#stores">View all stores <b>→</b></a></div>
-            </section>
           </div>
+
+          <section class="forensics-lab-section" id="forensics-lab">
+            <div class="forensics-lab-head">
+              <div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span class="forensics-brand-badge">
+                    <svg viewBox="0 0 24 24" fill="none"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="url(#gemini-grad)"/><defs><linearGradient id="gemini-grad" x1="2" y1="2" x2="22" y2="22"><stop stop-color="#4285F4"/><stop offset="0.5" stop-color="#9B72CB"/><stop offset="1" stop-color="#D96570"/></linearGradient></defs></svg>
+                    Google Cloud · Vertex AI
+                  </span>
+                  <h2 style="margin:0; font-family:Manrope,sans-serif; font-size:15px; font-weight:800; color:#1f2a24;">Gemini Multimodal Photo Forensics Lab</h2>
+                </div>
+                <p style="margin:4px 0 0; font-size:10px; color:#78867b;">Automated defect diagnosis, packaging OCR, and perceptual vector fraud detection across dark store refund claims</p>
+              </div>
+              <div class="upload-btn-row">
+                <label class="upload-file-label" for="custom-photo-upload">
+                  <svg viewBox="0 0 20 20" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 15v2h14v-2M10 3v9m0 0l3-3m-3 3L7 9"/></svg>
+                  Upload Custom Complaint Photo
+                </label>
+                <input type="file" id="custom-photo-upload" class="upload-file-input" accept="image/*" />
+              </div>
+            </div>
+
+            <div class="sample-chips-wrap" id="sample-chips-wrap">
+              <!-- Populated by app.js -->
+            </div>
+
+            <div class="forensics-stage-grid">
+              <div class="complaint-evidence-panel">
+                <div class="complaint-image-frame">
+                  <img id="forensics-display-img" src="/complaints/rotten_staples_1.jpg" alt="Complaint evidence photo" />
+                  <div class="image-overlay-pill">
+                    <i></i> <span id="forensics-img-label">Scenario 1: Bad Supplier Batch</span>
+                  </div>
+                </div>
+                <div class="complaint-quote">
+                  <strong id="forensics-product-label">Local tomatoes · 1 kg</strong>
+                  <span id="forensics-complaint-quote">"Tomatoes arrived rotten, squishy, and mouldy straight out of the delivery bag."</span>
+                </div>
+              </div>
+
+              <div class="forensics-result-panel" id="forensics-result-panel">
+                <div style="display:flex; align-items:center; justify-content:center; height:100%; color:#8e9990; font-size:10px;">
+                  Select a scenario above or upload a photo to run Gemini multimodal forensics.
+                </div>
+              </div>
+            </div>
+          </section>
 
           <section class="panel investigations-panel" id="investigations">
             <div class="panel-heading investigation-heading"><div><div class="title-with-count"><h2>Investigation queue</h2><span class="queue-count" id="queue-count">5</span></div><p>Issues ranked by impact and urgency</p></div><div class="queue-actions"><label class="search-box"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.8" cy="8.8" r="5.8"/><path d="m13 13 4 4"/></svg><input id="search-input" type="search" placeholder="Search issues" aria-label="Search issues" /></label><button class="button button-light" id="filter-button"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M5.5 10h9M8 15h4"/></svg> Filter <span class="filter-count hidden" id="filter-count">1</span></button><button class="button button-dark" id="new-investigation"><span class="plus">+</span> New investigation</button></div></div>
