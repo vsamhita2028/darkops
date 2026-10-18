@@ -97,7 +97,7 @@
 
           <div class="insight-banner"><div class="insight-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3m0 12v3m9-9h-3M6 12H3m15.36-6.36-2.12 2.12M7.76 16.24l-2.12 2.12m12.72 0-2.12-2.12M7.76 7.76 5.64 5.64"/><circle cx="12" cy="12" r="4"/></svg></div><div class="insight-copy"><strong>One thing to look at today</strong><span>Fresh produce waste is trending <b>28% higher</b> this week, mostly at Indiranagar.</span></div><button class="insight-link" data-open-issue="DO-2048">See investigation <span>→</span></button><button class="banner-close" aria-label="Dismiss insight">×</button></div>
 
-          <div class="section-head metrics-head"><div><h2>Operations snapshot</h2><p>Live view of your dark store network</p></div><span class="updated-label"><span class="live-dot"></span> Updated just now</span></div>
+          <div class="section-head metrics-head"><div><h2>Operations snapshot</h2><p id="metric-source-note">Sample operations data · case metrics use investigations; waste and expiry use operations tables</p></div><span class="updated-label"><span class="live-dot"></span> Updated just now</span></div>
 
           <div class="metric-grid">
             <article class="metric-card"><div class="metric-top"><span class="metric-label">Loss identified</span><span class="metric-icon loss-icon">₹</span></div><div class="metric-value" id="loss-value">₹ 21,840</div><div class="metric-foot"><span class="trend down">↓ 12.6%</span><span>vs. last week</span><span class="metric-foot-right">This week <b>↗</b></span></div><div class="mini-bars loss-bars"><i style="height:34%"></i><i style="height:51%"></i><i style="height:43%"></i><i style="height:66%"></i><i style="height:57%"></i><i style="height:84%"></i><i style="height:68%"></i><i style="height:48%"></i><i style="height:62%"></i><i style="height:42%"></i><i style="height:56%"></i><i class="bar-highlight" style="height:28%"></i></div></article>
@@ -185,12 +185,24 @@
     </div>
 
     <div class="drawer-backdrop" id="drawer-backdrop"></div>
+    <dialog class="new-investigation-dialog" id="new-investigation-dialog" aria-labelledby="new-investigation-title">
+      <form id="new-investigation-form">
+        <div class="new-investigation-head"><div><span class="eyebrow-line"></span><h2 id="new-investigation-title">Start an investigation</h2><p>Log a store issue for the team to review.</p></div><button type="button" class="dialog-close" id="new-investigation-close" aria-label="Close">×</button></div>
+        <label>Issue title<input name="title" required minlength="5" maxlength="120" placeholder="e.g. Repeated freezer temperature alerts" /></label>
+        <div class="new-investigation-row"><label>Store<select name="store" required><option value="">Choose a store</option><option value="HSR Layout">HSR Layout</option><option value="Koramangala">Koramangala</option><option value="Whitefield">Whitefield</option><option value="Indiranagar">Indiranagar</option></select></label><label>Issue type<select name="category" required><option value="">Choose an issue type</option><option value="Wastage">Wastage</option><option value="Expiry risk">Expiry risk</option><option value="Stock variance">Stock variance</option><option value="Returns">Returns</option><option value="Cold chain">Cold chain</option><option value="Other">Other</option></select></label></div>
+        <label>Product (optional)<input name="product" maxlength="120" placeholder="Product or batch" /></label>
+        <label>What happened?<textarea name="description" required minlength="10" maxlength="1000" rows="4" placeholder="Describe the signal or report and when it occurred."></textarea></label>
+        <div class="new-investigation-row"><label>Estimated impact (₹)<input name="impact" type="number" min="0" max="100000000" step="1" value="0" /></label><label>Priority<select name="severity"><option>Medium</option><option>High</option><option>Low</option></select></label></div>
+        <p class="dialog-hint">This creates a case record. It does not run Gemini or change the underlying BigQuery operations data.</p>
+        <div class="dialog-actions"><button type="button" class="button button-light" id="new-investigation-cancel">Cancel</button><button type="submit" class="button button-dark" id="new-investigation-submit">Create investigation</button></div>
+      </form>
+    </dialog>
     <aside class="detail-drawer" id="detail-drawer" aria-label="Investigation details" aria-hidden="true">
       <div class="drawer-top"><div class="drawer-breadcrumb"><button class="drawer-close" id="drawer-close" aria-label="Close investigation">×</button><span>Investigations</span><b>/</b><strong id="drawer-id">DO-2048</strong></div><button class="more-button" aria-label="More actions">···</button></div>
       <div class="drawer-scroll" id="drawer-content"></div>
     </aside>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="/app.js?v=20261018-gcp2" defer></script>
+    <script src="/app.js?v=20261018-forensic-intake" defer></script>
   </body>
 </html>

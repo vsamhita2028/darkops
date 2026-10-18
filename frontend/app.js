@@ -303,6 +303,8 @@ async function loadCloudStatus() {
 
 function updateMetrics(data) {
   if (!data) return;
+  const sourceName = data.source === 'bigquery' ? 'BigQuery' : 'local CSV';
+  $('#metric-source-note').textContent = `Sample operations data · ${sourceName}; case metrics use investigations, waste and expiry use operations tables`;
   const filtered = state.store ? state.issues.filter((issue) => issue.store === state.store) : state.issues;
   const loss = filtered.reduce((sum, issue) => sum + Number(issue.impact || 0), 0);
   $('#loss-value').textContent = money(loss);
@@ -460,10 +462,10 @@ function drawerMarkup(issue) {
     <div class="drawer-loss-card"><div><span>Estimated loss identified</span><strong>${money(issue.impact)}</strong></div><small>${esc(issue.units)}<br/>at current cost</small></div>
     
     <section class="drawer-section">
-      <div class="drawer-section-head"><h3>Customer complaint &amp; photo evidence</h3><span>FORENSICS</span></div>
-      <div style="background:#fff; border:1px solid #e7ede5; border-radius:8px; overflow:hidden; margin-bottom:8px;">
+      <div class="drawer-section-head"><h3>${issue.complaint_photo ? 'Customer complaint &amp; photo evidence' : 'Investigation report'}</h3><span>${issue.complaint_photo ? 'FORENSICS' : 'INTAKE'}</span></div>
+      ${issue.complaint_photo ? `<div style="background:#fff; border:1px solid #e7ede5; border-radius:8px; overflow:hidden; margin-bottom:8px;">
         <div style="position:relative; height:180px; background:#1c2620; display:flex; align-items:center; justify-content:center;">
-          <img src="${esc(issue.complaint_photo || '/complaints/rotten_staples_1.jpg')}" style="width:100%; height:100%; object-fit:cover;" alt="Complaint photo" />
+          <img src="${esc(issue.complaint_photo)}" style="width:100%; height:100%; object-fit:cover;" alt="Complaint photo" />
           <span style="position:absolute; bottom:8px; left:8px; background:rgba(0,0,0,0.75); color:#fff; font-size:8px; font-weight:600; padding:3px 7px; border-radius:4px;">
             ${esc(issue.scenario || 'Customer Refund Ticket')}
           </span>
@@ -471,13 +473,13 @@ function drawerMarkup(issue) {
         <div style="padding:10px 12px; font-size:9.5px; color:#4a574e; border-top:1px solid #eef2ec; line-height:1.45;">
           <strong style="color:#28332a; display:block; margin-bottom:2px;">Customer note:</strong> "${esc(issue.complaint_text || issue.signal)}"
         </div>
-      </div>
-      ${issue.forensics ? renderDrawerForensics(issue.forensics) : `
+      </div>` : `<div class="signal-box">${esc(issue.complaint_text || issue.signal || issue.summary)}</div>`}
+      ${issue.complaint_photo ? (issue.forensics ? renderDrawerForensics(issue.forensics) : `
         <button class="button button-light" style="width:100%; justify-content:center; gap:6px; font-size:9px;" data-run-forensics="${esc(issue.id)}">
           <svg viewBox="0 0 24 24" width="13" height="13" fill="none"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="#4285F4"/></svg>
           Run Gemini Multimodal Forensic Analysis
         </button>
-      `}
+      `) : ''}
     </section>
 
     <section class="drawer-section"><div class="drawer-section-head"><h3>Why this was flagged</h3><span>Rule-based signal</span></div><div class="signal-box">${esc(issue.signal || issue.summary)}</div></section>
@@ -633,6 +635,8 @@ function setupEvents() {
   $('#forensics-result-panel')?.addEventListener('click', (event) => {
     const analyzeButton = event.target.closest('[data-analyze-sample]');
     if (analyzeButton) analyzeSample(analyzeButton.dataset.analyzeSample);
+    const createButton = event.target.closest('[data-create-forensic-investigation]');
+    if (createButton && activeSample?.isCustom && activeSample.result) openForensicInvestigationForm(activeSample);
   });
 
   // Custom photo upload - creates a new distinct complaint entry
@@ -737,7 +741,52 @@ function setupEvents() {
   $('#clear-filters').addEventListener('click', () => { state.query = ''; state.category = 'All'; state.severity = ''; state.store = ''; $('#search-input').value = ''; $('#store-filter').value = ''; setCategory('All'); });
   $('.banner-close').addEventListener('click', () => $('.insight-banner').remove());
   $('#notification-button').addEventListener('click', () => showToast('You’re all caught up.'));
-  $('#new-investigation').addEventListener('click', () => showToast('New issue intake is planned for the next milestone.'));
+  const newInvestigationDialog = $('#new-investigation-dialog');
+  $('#new-investigation').addEventListener('click', () => { pendingForensicCase = null; $('#new-investigation-form').reset(); newInvestigationDialog.showModal(); });
+  $('#new-investigation-close').addEventListener('click', () => { pendingForensicCase = null; newInvestigationDialog.close(); });
+  $('#new-investigation-cancel').addEventListener('click', () => { pendingForensicCase = null; newInvestigationDialog.close(); });
+  newInvestigationDialog.addEventListener('click', (event) => { if (event.target === newInvestigationDialog) { pendingForensicCase = null; newInvestigationDialog.close(); } });
+  newInvestigationDialog.addEventListener('close', () => { pendingForensicCase = null; });
+  $('#new-investigation-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const submit = $('#new-investigation-submit');
+    const formData = new FormData(form);
+    const payload = Object.fromEntries(formData.entries());
+    payload.impact = Number(payload.impact || 0);
+    submit.disabled = true;
+    submit.textContent = 'Creating…';
+    try {
+      let created;
+      if (pendingForensicCase) {
+        const forensicForm = new FormData();
+        Object.entries(payload).forEach(([key, value]) => forensicForm.append(key, value));
+        forensicForm.append('forensic_result', JSON.stringify(pendingForensicCase.result));
+        forensicForm.append('file', pendingForensicCase.file, pendingForensicCase.file.name);
+        created = await request('/api/issues/from-forensics', { method: 'POST', body: forensicForm });
+      } else {
+        created = await request('/api/issues', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      }
+      const [issues, overview] = await Promise.all([request('/api/issues'), request('/api/overview')]);
+      state.issues = issues;
+      state.overview = overview;
+      state.category = 'All';
+      state.query = '';
+      $('#search-input').value = '';
+      renderIssues();
+      renderStores();
+      form.reset();
+      newInvestigationDialog.close();
+      pendingForensicCase = null;
+      showToast('Investigation created.');
+      await openIssue(created.id);
+    } catch (error) {
+      showToast(error.message);
+    } finally {
+      submit.disabled = false;
+      submit.textContent = 'Create investigation';
+    }
+  });
   $$('.period-toggle button').forEach((button) => button.addEventListener('click', () => {
     $$('.period-toggle button').forEach((item) => item.classList.toggle('active', item === button));
     showToast(button.dataset.period === '30d' ? 'Showing the 30-day summary view.' : 'Showing the 7-day summary view.');
@@ -759,6 +808,7 @@ function setupEvents() {
 
 let forensicsSamples = [];
 let activeSample = null;
+let pendingForensicCase = null;
 
 async function loadForensics() {
   try {
@@ -892,7 +942,35 @@ function renderForensicsPanel(f) {
       <strong>🛡️ Autonomous Guardrail Recommendation</strong>
       <p>${esc(f.action_recommendation)}</p>
     </div>
+    ${activeSample?.isCustom ? '<button type="button" class="button button-dark forensic-create-case" data-create-forensic-investigation>Create investigation from this report <span>→</span></button>' : ''}
   `;
+}
+
+function openForensicInvestigationForm(sample) {
+  pendingForensicCase = { file: sample.file, result: sample.result };
+  const findings = sample.result;
+  const descriptionParts = [
+    `Forensic finding: ${findings.defect_type || 'Image review'}.`,
+    findings.visual_evidence ? `Visual evidence: ${findings.visual_evidence}` : '',
+    findings.forensic_assessment ? `Assessment: ${findings.forensic_assessment}` : '',
+    findings.batch_code_ocr ? `Batch code OCR: ${findings.batch_code_ocr}` : '',
+    findings.expiry_date_ocr ? `Expiry date OCR: ${findings.expiry_date_ocr}` : '',
+    findings.action_recommendation ? `Suggested action: ${findings.action_recommendation}` : '',
+  ].filter(Boolean).join('\n');
+  const severity = /high|critical/i.test(findings.severity || '') ? 'High' : /low/i.test(findings.severity || '') ? 'Low' : 'Medium';
+  const forensicText = `${findings.defect_type || ''} ${findings.visual_evidence || ''} ${findings.forensic_assessment || ''} ${findings.action_recommendation || ''}`.toLowerCase();
+  const category = /expir|shelf life/i.test(forensicText) ? 'Expiry risk'
+    : /cold.chain|temperature|freezer|melt/i.test(forensicText) ? 'Cold chain'
+      : /fraud|abuse|duplicate|refund/i.test(forensicText) ? 'Returns'
+        : /wast|rot|mould|mold|spoil|contamin|crush|damage/i.test(forensicText) ? 'Wastage' : 'Other';
+  $('#new-investigation-form [name="title"]').value = `Forensic finding: ${findings.defect_type || sample.title}`.slice(0, 120);
+  $('#new-investigation-form [name="product"]').value = sample.product || '';
+  $('#new-investigation-form [name="description"]').value = descriptionParts.slice(0, 1000);
+  $('#new-investigation-form [name="category"]').value = category;
+  $('#new-investigation-form [name="store"]').value = '';
+  $('#new-investigation-form [name="impact"]').value = '0';
+  $('#new-investigation-form [name="severity"]').value = severity;
+  $('#new-investigation-dialog').showModal();
 }
 
 setupEvents();

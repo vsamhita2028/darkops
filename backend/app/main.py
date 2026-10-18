@@ -4,12 +4,14 @@ from datetime import date, datetime
 from pathlib import Path
 import json
 import os
+import re
+import uuid
 
 from fastapi import FastAPI, HTTPException, Query, UploadFile, File, Form, Body, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from google.cloud import storage
 from google.auth.transport.requests import Request as GoogleAuthRequest
 from google.oauth2 import id_token as google_id_token
@@ -76,6 +78,7 @@ PHOTO_MAPPING = {
         "scenario": "Scenario 6: Demand Dip / Potential Red Herring",
     },
 }
+CUSTOM_CASE_IMAGES: dict[str, tuple[bytes, str]] = {}
 
 EXTRA_SCENARIOS = [
     {
@@ -159,12 +162,18 @@ def load_initial_issues():
         row["complaint_text"] = mapping.get("complaint_text", row.get("complaint_text", row.get("signal", "")))
         row["scenario"] = mapping.get("scenario", row.get("scenario", "Operational Anomaly"))
     if USE_FIRESTORE:
-        for issue_id, saved in load_case_overrides().items():
+        saved_cases = load_case_overrides()
+        for issue_id, saved in saved_cases.items():
             issue = next((item for item in rows if item["id"] == issue_id), None)
             if issue:
                 for field in ("status", "action_record", "gemini_investigation", "verified_at", "updated_at", "forensics"):
                     if field in saved:
                         issue[field] = saved[field]
+            elif saved.get("created_by_user"):
+                custom_issue = {**saved, "id": issue_id}
+                if saved.get("image_object"):
+                    custom_issue["complaint_photo"] = f"/api/issues/{issue_id}/photo"
+                rows.append(custom_issue)
     return rows
 
 app = FastAPI(title="DarkOps API", version="0.2.0", description="Evidence-backed dark-store operations demo")
@@ -224,6 +233,16 @@ async def require_google_login(request: Request, call_next):
 class ActionInput(BaseModel):
     action: str = Field(min_length=3, max_length=180)
     owner: str = Field(default="Store manager", max_length=80)
+
+
+class NewInvestigationInput(BaseModel):
+    title: str = Field(min_length=5, max_length=120)
+    description: str = Field(min_length=10, max_length=1000)
+    category: str = Field(min_length=2, max_length=40)
+    store: str = Field(min_length=1, max_length=80)
+    product: str = Field(default="Not specified", max_length=120)
+    impact: int = Field(default=0, ge=0, le=100000000)
+    severity: str = Field(default="Medium", pattern="^(Low|Medium|High)$")
 
 
 @app.get("/api/health")
@@ -348,6 +367,7 @@ def bigquery_tables():
 @app.get("/api/overview")
 def overview(store: str | None = Query(default=None)):
     result = DATA.overview(store)
+    result["source"] = DATA.source
     filtered = [issue for issue in ISSUES if not store or issue["store"] == store]
     result["metrics"]["active_cases"] = len([issue for issue in filtered if issue["status"] != "Verified"])
     result["metrics"]["loss_at_risk"] = sum(issue["impact"] for issue in filtered)
@@ -365,6 +385,140 @@ def list_issues(category: str | None = None, store: str | None = None, q: str | 
         term = q.lower()
         rows = [issue for issue in rows if term in " ".join(str(issue.get(key, "")) for key in ("id", "title", "product", "store", "category")).lower()]
     return rows
+
+
+@app.post("/api/issues", status_code=201)
+def create_issue(payload: NewInvestigationInput):
+    store = next((row for row in DATA.stores if row["name"] == payload.store or row["store_id"] == payload.store), None)
+    if store is None:
+        raise HTTPException(status_code=422, detail="Choose a store from the list.")
+    now = datetime.now()
+    issue_id = f"DO-{uuid.uuid4().hex[:8].upper()}"
+    issue = build_user_issue(issue_id, payload, store, now)
+    persist_case(issue)
+    ISSUES.insert(0, issue)
+    return issue
+
+
+def build_user_issue(issue_id: str, payload: NewInvestigationInput, store: dict, now: datetime) -> dict:
+    return {
+        "id": issue_id,
+        "title": payload.title.strip(),
+        "product": payload.product.strip() or "Not specified",
+        "category": payload.category.strip(),
+        "store": store["name"],
+        "store_code": store["store_id"],
+        "impact": payload.impact,
+        "units": "estimated impact",
+        "severity": payload.severity,
+        "status": "New",
+        "age": "Just now",
+        "icon": "◈",
+        "color": "green",
+        "summary": payload.description.strip(),
+        "signal": payload.description.strip(),
+        "complaint_text": payload.description.strip(),
+        "scenario": "User-created investigation",
+        "evidence": [],
+        "hypotheses": [],
+        "recommendation": "Review the report and supporting store evidence, then record the next action.",
+        "verification": {"before": payload.impact, "after": payload.impact, "unit": "estimated impact", "period": "7 days", "source": "Not yet verified"},
+        "evidence_refs": [],
+        "created_by_user": True,
+        "created_at": now.isoformat(timespec="minutes"),
+        "updated_at": now.isoformat(timespec="minutes"),
+    }
+
+
+@app.post("/api/issues/from-forensics", status_code=201)
+async def create_forensic_issue(
+    file: UploadFile = File(...),
+    title: str = Form(...),
+    description: str = Form(...),
+    category: str = Form(...),
+    store: str = Form(...),
+    product: str = Form("Not specified"),
+    impact: int = Form(0, ge=0, le=100000000),
+    severity: str = Form("Medium", pattern="^(Low|Medium|High)$"),
+    forensic_result: str = Form(...),
+):
+    content_type = (file.content_type or "").lower()
+    if content_type not in {"image/jpeg", "image/png", "image/webp"}:
+        raise HTTPException(status_code=415, detail="Upload a JPEG, PNG, or WebP image.")
+    image_bytes = await file.read(10 * 1024 * 1024 + 1)
+    if not image_bytes or len(image_bytes) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Image must be smaller than 10 MB.")
+    try:
+        findings = json.loads(forensic_result)
+        if not isinstance(findings, dict):
+            raise ValueError
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail="The forensic result is invalid.") from exc
+    try:
+        payload = NewInvestigationInput(
+            title=title, description=description, category=category, store=store,
+            product=product, impact=impact, severity=severity,
+        )
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail="Investigation details are invalid.") from exc
+    store_row = next((row for row in DATA.stores if row["name"] == payload.store or row["store_id"] == payload.store), None)
+    if store_row is None:
+        raise HTTPException(status_code=422, detail="Choose a store from the list.")
+
+    issue_id = f"DO-{uuid.uuid4().hex[:8].upper()}"
+    now = datetime.now()
+    issue = build_user_issue(issue_id, payload, store_row, now)
+    issue["forensics"] = findings
+    issue["image_content_type"] = content_type
+    issue["image_filename"] = Path(file.filename or "uploaded-photo").name[:180]
+    issue["complaint_photo"] = f"/api/issues/{issue_id}/photo"
+
+    bucket_name = SAMPLE_IMAGE_BUCKET
+    uploaded_blob = None
+    if bucket_name:
+        extension = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}[content_type]
+        safe_stem = re.sub(r"[^a-zA-Z0-9_-]+", "-", Path(file.filename or "photo").stem).strip("-")[:48] or "photo"
+        object_name = f"investigations/{issue_id}/{safe_stem}{extension}"
+        try:
+            uploaded_blob = storage.Client(project=PROJECT_ID).bucket(bucket_name).blob(object_name)
+            uploaded_blob.upload_from_string(image_bytes, content_type=content_type)
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="Could not save the forensic image to Cloud Storage.") from exc
+        issue["image_bucket"] = bucket_name
+        issue["image_object"] = object_name
+    else:
+        CUSTOM_CASE_IMAGES[issue_id] = (image_bytes, content_type)
+
+    try:
+        persist_case(issue)
+    except Exception:
+        if uploaded_blob:
+            try:
+                uploaded_blob.delete()
+            except Exception:
+                pass
+        CUSTOM_CASE_IMAGES.pop(issue_id, None)
+        raise
+    ISSUES.insert(0, issue)
+    return issue
+
+
+@app.get("/api/issues/{issue_id}/photo")
+def get_issue_photo(issue_id: str):
+    issue = next((item for item in ISSUES if item["id"] == issue_id), None)
+    if not issue:
+        raise HTTPException(status_code=404, detail="Investigation not found")
+    if issue.get("image_bucket") and issue.get("image_object"):
+        try:
+            image_bytes = storage.Client(project=PROJECT_ID).bucket(issue["image_bucket"]).blob(issue["image_object"]).download_as_bytes()
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail="Could not load the forensic image from Cloud Storage.") from exc
+        content_type = issue.get("image_content_type", "image/jpeg")
+    elif issue_id in CUSTOM_CASE_IMAGES:
+        image_bytes, content_type = CUSTOM_CASE_IMAGES[issue_id]
+    else:
+        raise HTTPException(status_code=404, detail="Forensic image is unavailable")
+    return Response(content=image_bytes, media_type=content_type, headers={"Cache-Control": "private, max-age=3600"})
 
 
 @app.get("/api/issues/{issue_id}")

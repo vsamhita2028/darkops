@@ -88,11 +88,16 @@ def persist_case(issue: dict[str, Any]) -> None:
         return
     client = get_firestore_client()
     try:
-        client.collection("darkops_cases").document(issue["id"]).set({
-            "issue_id": issue["id"], "status": issue["status"],
-            "action_record": issue.get("action_record"), "gemini_investigation": issue.get("gemini_investigation"),
-            "verified_at": issue.get("verified_at"), "updated_at": issue.get("updated_at"),
-        }, merge=True)
+        fields = (
+            "title", "product", "category", "store", "store_code", "impact", "units", "severity",
+            "status", "age", "icon", "color", "summary", "signal", "complaint_text", "scenario",
+            "evidence", "hypotheses", "recommendation", "verification", "evidence_refs", "created_by_user",
+            "created_at", "image_bucket", "image_object", "image_content_type", "image_filename",
+            "action_record", "gemini_investigation", "verified_at", "forensics", "updated_at",
+        )
+        record = {"issue_id": issue["id"]}
+        record.update({key: issue[key] for key in fields if key in issue})
+        client.collection("darkops_cases").document(issue["id"]).set(record, merge=True)
     except HTTPException:
         raise
     except Exception as exc:
