@@ -61,3 +61,14 @@
 .upload-file-label{border:1px dashed #ced7cb;background:#fff;padding:6px 12px;border-radius:6px;font-size:9px;color:#546457;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all .15s}
 .upload-file-label:hover{border-color:#326946;color:#326946;background:#f8faf6}
 .upload-file-input{display:none}
+
+/* Keep the photo lab independent from the dashboard grid and resilient on small screens. */
+.forensics-lab-heading-copy{flex:1;min-width:0}
+.forensics-lab-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.forensics-lab-title h2{margin:0;font-family:Manrope,sans-serif;font-size:clamp(14px,1.2vw,17px);line-height:1.35;font-weight:800;color:#1f2a24}
+.forensics-description{margin:4px 0 0;font-size:10px;line-height:1.5;color:#78867b}
+.forensics-stage-grid>*,.forensics-result-panel{min-width:0}
+.forensics-result-panel{min-height:220px;overflow-wrap:anywhere}
+.reasoning-box p,.action-guardrail-box p{overflow-wrap:anywhere}
+.complaint-evidence-panel,.forensics-result-panel{height:100%}
+@media(max-width:610px){.forensics-lab-section{padding:16px 13px}.forensics-lab-head{align-items:flex-start}.upload-btn-row{width:100%}.upload-file-label{justify-content:center;min-height:36px;white-space:normal}.forensics-stage-grid{gap:10px}.complaint-evidence-panel,.forensics-result-panel{padding:11px}.forensics-result-header{align-items:flex-start;gap:8px}.defect-pill{white-space:normal}}

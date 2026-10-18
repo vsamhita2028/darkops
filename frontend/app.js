@@ -352,6 +352,8 @@ function setupEvents() {
   $('#drawer-close').addEventListener('click', closeDrawer);
   $('#drawer-backdrop').addEventListener('click', closeDrawer);
   $('#drawer-content').addEventListener('click', async (event) => {
+    const action = event.target.closest('[data-action]');
+    const verify = event.target.closest('[data-verify]');
     const investigate = event.target.closest('[data-investigate]');
     const runForensics = event.target.closest('[data-run-forensics]');
     if (action && !action.disabled) recordAction(action.dataset.action);
@@ -376,6 +378,10 @@ function setupEvents() {
   $('#sample-chips-wrap')?.addEventListener('click', (event) => {
     const chip = event.target.closest('[data-sample-id]');
     if (chip) selectSample(chip.dataset.sampleId);
+  });
+  $('#forensics-result-panel')?.addEventListener('click', (event) => {
+    const analyzeButton = event.target.closest('[data-analyze-sample]');
+    if (analyzeButton) analyzeSample(analyzeButton.dataset.analyzeSample);
   });
 
   // Custom photo upload
@@ -454,6 +460,9 @@ function setupEvents() {
     else if (target === 'forensics') document.querySelector('#forensics-lab')?.scrollIntoView({ behavior: 'smooth' });
     else window.scrollTo({ top: 0, behavior: 'smooth' });
   }));
+  const initialNav = window.location.hash === '#forensics-lab' ? 'forensics' : window.location.hash === '#investigations' ? 'investigations' : 'overview';
+  $$('.nav-item').forEach((item) => item.classList.toggle('active', item.dataset.nav === initialNav));
+  $('#breadcrumb-current').textContent = initialNav === 'forensics' ? 'Photo Forensics' : initialNav === 'investigations' ? 'Investigations' : 'Overview';
   document.addEventListener('keydown', (event) => { if (event.key === 'Escape') { closeDrawer(); $('#severity-popover')?.remove(); } });
 }
 
@@ -465,7 +474,7 @@ async function loadForensics() {
     forensicsSamples = await request('/api/forensics/samples');
     renderSampleChips();
     if (forensicsSamples.length > 0) {
-      selectSample(forensicsSamples[0].id);
+      selectSample(forensicsSamples[0].id, false);
     }
   } catch (err) {
     console.error('Failed to load forensics samples:', err);
@@ -491,7 +500,7 @@ function renderSampleChips() {
   `).join('');
 }
 
-async function selectSample(sampleId) {
+async function selectSample(sampleId, analyze = true) {
   const sample = forensicsSamples.find((s) => s.id === sampleId);
   if (!sample) return;
   activeSample = sample;
@@ -503,6 +512,21 @@ async function selectSample(sampleId) {
   $('#forensics-complaint-quote').textContent = `"${sample.complaint_text}"`;
 
   const resultContainer = $('#forensics-result-panel');
+  if (!analyze) {
+    resultContainer.innerHTML = `
+      <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:180px; gap:10px; color:#5c6e61; text-align:center;">
+        <span style="font-size:11px; font-weight:600;">Photo ready for forensic analysis</span>
+        <button type="button" class="primary-button" data-analyze-sample="${esc(sampleId)}">Analyze with Gemini</button>
+      </div>
+    `;
+    return;
+  }
+  await analyzeSample(sampleId);
+}
+
+async function analyzeSample(sampleId) {
+  const resultContainer = $('#forensics-result-panel');
+  if (!resultContainer) return;
   resultContainer.innerHTML = `
     <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:180px; gap:8px; color:#5c6e61;">
       <div class="status-dot" style="width:10px; height:10px; background:#4285F4; animation:pulse-red 1s infinite;"></div>

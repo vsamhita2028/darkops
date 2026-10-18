@@ -38,12 +38,24 @@ class ForensicsService:
     def __init__(self):
         self.api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
         self.client = None
-        if self.api_key and GENAI_AVAILABLE:
+        use_vertex = os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "false").lower() in {"1", "true", "yes"}
+        project_id = os.environ.get("GOOGLE_CLOUD_PROJECT", "").strip()
+        if GENAI_AVAILABLE and use_vertex and project_id:
+            try:
+                self.client = genai.Client(
+                    vertexai=True,
+                    project=project_id,
+                    location=os.environ.get("GOOGLE_CLOUD_LOCATION", "global").strip(),
+                )
+            except Exception as e:
+                print(f"[ForensicsService] Failed to initialize Vertex AI client: {e}")
+        if self.client is None and self.api_key and GENAI_AVAILABLE:
             try:
                 self.client = genai.Client(api_key=self.api_key)
             except Exception as e:
-                print(f"[ForensicsService] Failed to initialize Google GenAI client: {e}")
-                self.client = None
+                print(f"[ForensicsService] Failed to initialize Google GenAI API-key client: {e}")
+        if self.client is None and GENAI_AVAILABLE and not self.api_key and not (use_vertex and project_id):
+            print("[ForensicsService] Live Gemini is not configured; deterministic analysis will be used.")
 
         # Perceptual hash database for duplicate photo abuse detection (ClaimID -> hash)
         self.photo_index: Dict[str, Dict[str, Any]] = {}
@@ -68,6 +80,7 @@ class ForensicsService:
         """Indexes known seeded claims for Scenario 5 fraud detection."""
         abuse_dir = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "complaints", "abuse")
         if os.path.exists(abuse_dir):
+            indexed_hashes: set[str] = set()
             for i in range(1, 10):
                 fname = f"abuse_claim_{i}.jpg"
                 fpath = os.path.join(abuse_dir, fname)
@@ -75,6 +88,9 @@ class ForensicsService:
                     try:
                         with Image.open(fpath) as img:
                             phash = self._calculate_dhash(img)
+                            if phash in indexed_hashes:
+                                continue
+                            indexed_hashes.add(phash)
                             claim_id = f"CLM-ABUSE-{100 + i}"
                             self.photo_index[claim_id] = {
                                 "claim_id": claim_id,
@@ -196,7 +212,7 @@ Respond ONLY in valid JSON matching this schema:
                     mime_type = "image/webp"
 
                 response = self.client.models.generate_content(
-                    model=os.environ.get("GEMINI_FLASH_MODEL", "gemini-2.5-flash"),
+                    model=os.environ.get("GEMINI_FLASH_MODEL") or os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
                     contents=[
                         types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
                         prompt,
