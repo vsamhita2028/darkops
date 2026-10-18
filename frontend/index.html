@@ -12,6 +12,16 @@
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
+    <div class="auth-gate" id="auth-gate" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+      <div class="auth-card">
+        <div class="auth-brand-mark">D</div>
+        <p class="auth-eyebrow">DARKOPS · OPERATIONS INTELLIGENCE</p>
+        <h1 id="auth-title">Sign in to continue</h1>
+        <p class="auth-description">Use your Google account to open the workspace. Your Google profile name will appear automatically after sign-in.</p>
+        <div id="google-signin-button"></div>
+        <p class="auth-status" id="auth-status" role="status" aria-live="polite">Continue securely with Google.</p>
+      </div>
+    </div>
     <div class="app-shell">
       <aside class="sidebar">
         <a class="brand" href="#overview" aria-label="DarkOps home">
@@ -42,7 +52,8 @@
 
         <div class="sidebar-bottom">
           <div class="help-card"><span class="help-spark">✳</span><strong>Make every unit count.</strong><p>Turn store signals into better decisions.</p><a href="#how-it-works">How DarkOps works <span>↗</span></a></div>
-          <button class="profile-button" type="button"><span class="profile-avatar">SK</span><span class="profile-copy"><strong>Sam K.</strong><small>Operations lead</small></span><span class="profile-more">···</span></button>
+          <div class="profile-button" id="profile-button"><span class="profile-avatar">GU</span><span class="profile-copy"><strong>Google User</strong><small>Not signed in</small></span><span class="profile-more">···</span></div>
+          <button class="profile-signout" id="sign-out-button" type="button">Sign out</button>
           <div class="sidebar-footer"><span class="status-dot"></span> All systems operational</div>
         </div>
       </aside>
@@ -60,7 +71,7 @@
 
         <section class="page-wrap" id="overview">
           <div class="page-heading">
-            <div><div class="eyebrow"><span class="eyebrow-line"></span> SATURDAY, 17 OCTOBER 2026</div><h1>Good morning, Sam <span class="wave">✳</span></h1><p class="page-subtitle">Here’s what’s happening across your stores today.</p></div>
+            <div><div class="eyebrow"><span class="eyebrow-line"></span> SATURDAY, 17 OCTOBER 2026</div><h1>Good morning, <span id="greeting-name">Demo User</span> <span class="wave">✳</span></h1><p class="page-subtitle">Here’s what’s happening across your stores today.</p></div>
             <div class="heading-actions"><label class="select-wrap"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 18s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10Z"/><circle cx="10" cy="8" r="2"/></svg><select id="store-filter" aria-label="Filter by store"><option value="">All stores</option><option>HSR Layout</option><option>Koramangala</option><option>Whitefield</option><option>Indiranagar</option></select><span class="select-chevron">⌄</span></label><button class="button button-dark" id="export-button"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v9m0 0 3.5-3.5M10 12 6.5 8.5M4 13v3h12v-3"/></svg> Export report</button></div>
           </div>
 

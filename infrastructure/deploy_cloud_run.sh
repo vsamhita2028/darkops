@@ -11,13 +11,13 @@ gcloud run deploy "$SERVICE" \
   --project="$PROJECT_ID" \
   --region="$REGION" \
   --service-account="$RUNTIME_SA" \
-  --no-allow-unauthenticated \
-  --iap \
+  --allow-unauthenticated \
+  --no-iap \
   --min=0 \
   --max=2 \
   --memory=512Mi \
   --cpu=1 \
   --timeout=60 \
-  --set-env-vars="GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=global,BIGQUERY_LOCATION=${REGION},BIGQUERY_DATASET=darkops_demo,DARKOPS_USE_FIRESTORE=true,GOOGLE_GENAI_USE_VERTEXAI=true,GEMINI_MODEL=gemini-3.1-flash-lite"
+  --set-env-vars="GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=global,GOOGLE_OAUTH_CLIENT_ID=${GOOGLE_OAUTH_CLIENT_ID:-},BIGQUERY_LOCATION=${REGION},BIGQUERY_DATASET=darkops_demo,DARKOPS_USE_FIRESTORE=true,GOOGLE_GENAI_USE_VERTEXAI=true,GEMINI_MODEL=gemini-3.1-flash-lite"
 
 gcloud run services describe "$SERVICE" --project="$PROJECT_ID" --region="$REGION" --format='value(status.url)'

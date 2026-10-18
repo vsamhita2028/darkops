@@ -2,11 +2,15 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from pathlib import Path
+import os
 
-from fastapi import FastAPI, HTTPException, Query, UploadFile, File, Form, Body
+from fastapi import FastAPI, HTTPException, Query, UploadFile, File, Form, Body, Request, Response
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from google.auth.transport.requests import Request as GoogleAuthRequest
+from google.oauth2 import id_token as google_id_token
 
 from backend.app.data_service import OperationsData
 from backend.app.google_cloud import (
@@ -146,6 +150,34 @@ app.add_middleware(
 )
 
 
+def verify_google_id_token(token: str) -> dict:
+    client_id = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "").strip()
+    if not client_id:
+        raise HTTPException(status_code=503, detail="Google sign-in is not configured.")
+    try:
+        claims = google_id_token.verify_oauth2_token(token, GoogleAuthRequest(), client_id)
+    except Exception as exc:
+        raise HTTPException(status_code=401, detail="Google sign-in is invalid or expired. Please sign in again.") from exc
+    if not claims.get("sub") or not claims.get("email") or not claims.get("email_verified"):
+        raise HTTPException(status_code=401, detail="Google did not verify this account's email address.")
+    return claims
+
+
+@app.middleware("http")
+async def require_google_login(request: Request, call_next):
+    path = request.url.path
+    public_api_paths = {"/api/health", "/api/auth/config", "/api/auth/session", "/api/auth/logout"}
+    if path.startswith("/api/") and path not in public_api_paths:
+        token = request.cookies.get("darkops_google_session", "")
+        if not token:
+            return JSONResponse({"detail": "Sign in with Google to continue."}, status_code=401)
+        try:
+            request.state.google_user = verify_google_id_token(token)
+        except HTTPException as exc:
+            return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+    return await call_next(request)
+
+
 class ActionInput(BaseModel):
     action: str = Field(min_length=3, max_length=180)
     owner: str = Field(default="Store manager", max_length=80)
@@ -154,6 +186,54 @@ class ActionInput(BaseModel):
 @app.get("/api/health")
 def health():
     return {"application": "DarkOps", "status": "running", "environment": "synthetic-demo", "data_as_of": DATA.last_date.isoformat()}
+
+
+@app.get("/api/profile")
+def profile(request: Request):
+    """Return the name and email from the verified Google sign-in token."""
+    user = request.state.google_user
+    return {"display_name": user.get("name") or user.get("given_name") or "Google User",
+            "email": user["email"], "picture": user.get("picture", ""), "authenticated": True}
+
+
+class GoogleCredential(BaseModel):
+    credential: str = Field(min_length=100, max_length=8192)
+
+
+@app.get("/api/auth/config")
+def google_auth_config():
+    return {"client_id": os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "").strip()}
+
+
+@app.post("/api/auth/session")
+def google_auth_session(payload: GoogleCredential, response: Response, request: Request):
+    """Validate a Google Sign-In ID token before the browser starts an app session."""
+    claims = verify_google_id_token(payload.credential)
+    response.set_cookie(
+        key="darkops_google_session",
+        value=payload.credential,
+        httponly=True,
+        secure=request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https",
+        samesite="lax",
+        max_age=3600,
+        path="/",
+    )
+    return {
+        "display_name": claims.get("name") or claims.get("given_name") or "Google User",
+        "email": claims["email"],
+        "picture": claims.get("picture", ""),
+        "authenticated": True,
+    }
+
+
+@app.post("/api/auth/logout")
+def google_auth_logout(response: Response, request: Request):
+    response.delete_cookie(
+        "darkops_google_session", path="/", httponly=True,
+        secure=request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https",
+        samesite="lax",
+    )
+    return {"signed_out": True}
 
 
 @app.get("/api/dataset")

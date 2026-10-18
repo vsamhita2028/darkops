@@ -3,6 +3,7 @@ const esc = (value = '') => String(value).replace(/[&<>"']/g, (char) => ({ '&': 
 const state = { issues: [], overview: null, category: 'All', query: '', store: '', severity: '', sort: 'impact', selectedId: null };
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+let googleSignInInitialized = false;
 
 function fallbackData() {
   return [
@@ -14,10 +15,13 @@ function fallbackData() {
   ];
 }
 
-async function request(path, options) {
-  const response = await fetch(path, options);
+async function request(path, options = {}) {
+  const response = await fetch(path, { ...options, credentials: 'same-origin' });
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
+    if (response.status === 401 && path !== '/api/auth/session' && path !== '/api/auth/logout') {
+      showAuthGate(body.detail || 'Please sign in with Google to continue.');
+    }
     throw new Error(body.detail || `Request failed (${response.status})`);
   }
   return response.json();
@@ -35,7 +39,101 @@ async function loadData() {
   }
   renderIssues();
   renderStores();
+  await loadForensics();
   loadCloudStatus();
+}
+
+function renderProfile(profile) {
+  const name = profile.display_name || 'Google User';
+  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0].toUpperCase()).join('') || 'GU';
+  $$('.profile-copy strong').forEach((node) => { node.textContent = name; });
+  $$('.profile-copy small').forEach((node) => { node.textContent = profile.email || ''; });
+  $$('.profile-avatar').forEach((node) => { node.textContent = initials; });
+  $('#greeting-name').textContent = name;
+}
+
+function showAuthGate(message = '') {
+  const gate = $('#auth-gate');
+  if (gate) gate.hidden = false;
+  const status = $('#auth-status');
+  if (status && message) status.textContent = message;
+}
+
+function hideAuthGate() {
+  const gate = $('#auth-gate');
+  if (gate) gate.hidden = true;
+}
+
+async function startAuthenticatedApp() {
+  showAuthGate();
+  $('#sign-out-button')?.addEventListener('click', async () => {
+    try { await request('/api/auth/logout', { method: 'POST' }); } catch { /* the page will return to sign-in either way */ }
+    window.location.reload();
+  }, { once: true });
+  try {
+    const profile = await request('/api/profile');
+    renderProfile(profile);
+    hideAuthGate();
+    await loadData();
+    return;
+  } catch {
+    // No valid server session; show the Google sign-in prompt below.
+  }
+  initializeGoogleSignIn();
+}
+
+async function initializeGoogleSignIn() {
+  if (googleSignInInitialized) return;
+  googleSignInInitialized = true;
+  try {
+    const { client_id: clientId } = await request('/api/auth/config');
+    if (!clientId) throw new Error('Google sign-in is not configured for this app.');
+    const continueSetup = () => {
+      if (!window.google?.accounts?.id) {
+        $('#auth-status').textContent = 'Google sign-in could not load. Refresh and try again.';
+        return;
+      }
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: async ({ credential }) => {
+          if (!credential) {
+            showAuthGate('Google did not return a sign-in credential. Please try again.');
+            return;
+          }
+          $('#auth-status').textContent = 'Signing you in…';
+          try {
+            const profile = await request('/api/auth/session', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ credential }),
+            });
+            renderProfile(profile);
+            hideAuthGate();
+            await loadData();
+          } catch (error) {
+            showAuthGate(error.message || 'Google sign-in could not be verified. Please try again.');
+          }
+        },
+        auto_select: false,
+        use_fedcm_for_prompt: true,
+      });
+      window.google.accounts.id.renderButton($('#google-signin-button'), {
+        type: 'standard', theme: 'outline', size: 'large', text: 'signin_with',
+        shape: 'rectangular', logo_alignment: 'left', width: 280,
+      });
+    };
+
+    if (window.google?.accounts?.id) return continueSetup();
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = continueSetup;
+    script.onerror = () => { $('#auth-status').textContent = 'Google sign-in could not load. Check your connection and refresh.'; };
+    document.head.appendChild(script);
+  } catch (error) {
+    $('#auth-status').textContent = error.message || 'Google sign-in is unavailable.';
+  }
 }
 
 async function loadCloudStatus() {
@@ -587,5 +685,4 @@ function renderForensicsPanel(f) {
 }
 
 setupEvents();
-loadData();
-loadForensics();
+startAuthenticatedApp();
