@@ -35,6 +35,19 @@ async function loadData() {
   }
   renderIssues();
   renderStores();
+  loadCloudStatus();
+}
+
+async function loadCloudStatus() {
+  try {
+    const status = await request('/api/cloud/status');
+    const badge = $('#gcp-pill');
+    if (status.project_id) {
+      badge.textContent = `GCP target · ${status.project_id}`;
+      badge.classList.add('connected');
+      badge.title = `Vertex AI model: ${status.vertex_ai.model}. Gemini analysis only runs when you request it.`;
+    }
+  } catch { /* local demo can run without Google Cloud credentials */ }
 }
 
 function updateMetrics(data) {
@@ -147,6 +160,7 @@ function drawerMarkup(issue) {
   const evidence = (issue.evidence || []).map((item) => `<div class="evidence-card"><span>${esc(item.label)}</span><strong class="${item.direction === 'bad' ? 'bad' : item.direction === 'good' ? 'good' : ''}">${esc(item.value)}</strong><small>${esc(item.note)}</small></div>`).join('');
   const hypotheses = (issue.hypotheses || []).map((item) => `<div class="hypothesis"><div class="hypothesis-top"><span>${esc(item.name)}</span><span class="hypothesis-score">${esc(item.score)} signal</span></div><div class="hypothesis-bar"><i style="width:${Math.max(0, Math.min(100, Number(item.score)))}%"></i></div><p>${esc(item.detail)}</p></div>`).join('');
   const recorded = issue.action_record ? `<div class="action-recorded"><strong>✓ Action recorded · ${esc(issue.action_record.owner)}</strong><p>${esc(issue.action_record.action)}</p></div>` : '';
+  const aiResult = issue.gemini_investigation ? `<div class="ai-result"><h4>Gemini investigation · ${esc(issue.gemini_investigation.model || 'Vertex AI')}</h4><p><strong>Likely cause:</strong> ${esc(issue.gemini_investigation.likely_root_cause)}</p><p>${esc(issue.gemini_investigation.explanation)}</p><strong>Recommended actions</strong><ul>${(issue.gemini_investigation.recommended_actions || []).map((item) => `<li>${esc(item)}</li>`).join('')}</ul>${issue.gemini_investigation.evidence_gaps?.length ? `<p><strong>Evidence gaps:</strong> ${issue.gemini_investigation.evidence_gaps.map(esc).join('; ')}</p>` : ''}</div>` : '';
   let verify = '';
   if (issue.action_record) {
     if (issue.verified_at) {
@@ -163,7 +177,7 @@ function drawerMarkup(issue) {
     <div class="drawer-loss-card"><div><span>Estimated loss identified</span><strong>${money(issue.impact)}</strong></div><small>${esc(issue.units)}<br/>at current cost</small></div>
     <section class="drawer-section"><div class="drawer-section-head"><h3>Why this was flagged</h3><span>Rule-based signal</span></div><div class="signal-box">${esc(issue.signal || issue.summary)}</div></section>
     <section class="drawer-section"><div class="drawer-section-head"><h3>Supporting evidence</h3><span>Calculated from generated records</span></div><div class="evidence-grid">${evidence}</div><div class="evidence-sources"><span>DATA SOURCES</span>${(issue.evidence_refs || []).map((source) => `<code>${esc(source)}</code>`).join('')}</div></section>
-    <section class="drawer-section"><div class="drawer-section-head"><h3>Likely root causes</h3><span>Ranked by evidence fit</span></div>${hypotheses}</section>
+    <section class="drawer-section"><div class="drawer-section-head"><h3>Likely root causes</h3><span>Ranked by evidence fit</span></div>${hypotheses}<button class="button button-light drawer-action" id="run-gemini" data-investigate="${esc(issue.id)}">✳ Analyze with Gemini</button><p class="ai-note">Sends this case’s synthetic evidence to Vertex AI. Model usage may incur Google Cloud charges.</p>${aiResult}</section>
     <section class="drawer-section"><div class="recommendation"><div class="recommendation-label"><span>✳</span> SUGGESTED NEXT STEP</div><p>${esc(issue.recommendation || 'Review the supporting evidence and decide on the next operational action.')}</p></div>${recorded}<button class="button ${issue.action_record ? 'button-light secondary' : 'button-dark'} drawer-action" id="record-action" data-action="${esc(issue.id)}" ${issue.action_record ? 'disabled' : ''}>${issue.action_record ? '✓ Action recorded' : 'Record simulated action'} <span>→</span></button></section>
     <section class="drawer-section"><div class="drawer-section-head"><h3>Outcome verification</h3><span>SIMULATED</span></div>${verify}</section>
     <p class="source-note">Demo data · Estimates are calculated from synthetic records. The root-cause ranking is a transparent prototype signal, not a calibrated probability. Simulated follow-up does not establish that an action caused the observed change.</p>`;
@@ -199,9 +213,8 @@ async function recordAction(id) {
     await request(`/api/issues/${encodeURIComponent(id)}/action`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: issue.recommendation, owner: 'Store manager' }) });
     showToast('Simulated action recorded for this case.');
   } catch (error) {
-    issue.action_record = { action: issue.recommendation, owner: 'Store manager', simulated: true };
-    issue.status = 'Action recorded';
-    showToast('Action saved in this demo session.');
+    showToast(error.message);
+    return;
   }
   await refreshSelected(id);
 }
@@ -211,11 +224,27 @@ async function verifyIssue(id) {
     await request(`/api/issues/${encodeURIComponent(id)}/verify`, { method: 'POST' });
     showToast('Simulated follow-up period complete.');
   } catch (error) {
-    const issue = state.issues.find((item) => item.id === id);
-    if (issue) { issue.status = 'Verified'; issue.verified_at = new Date().toISOString().slice(0, 10); }
-    showToast('Follow-up result simulated for this session.');
+    showToast(error.message);
+    return;
   }
   await refreshSelected(id);
+}
+
+async function investigateWithGemini(id, button) {
+  const original = button.innerHTML;
+  button.disabled = true;
+  button.textContent = 'Analyzing evidence…';
+  try {
+    const issue = await request(`/api/issues/${encodeURIComponent(id)}/investigate`, { method: 'POST' });
+    const index = state.issues.findIndex((item) => item.id === id);
+    if (index >= 0) state.issues[index] = issue;
+    showToast('Gemini investigation complete.');
+    openIssue(id);
+  } catch (error) {
+    showToast(error.message);
+    button.disabled = false;
+    button.innerHTML = original;
+  }
 }
 
 async function refreshSelected(id) {
@@ -271,8 +300,10 @@ function setupEvents() {
   $('#drawer-content').addEventListener('click', (event) => {
     const action = event.target.closest('[data-action]');
     const verify = event.target.closest('[data-verify]');
+    const investigate = event.target.closest('[data-investigate]');
     if (action && !action.disabled) recordAction(action.dataset.action);
     if (verify) verifyIssue(verify.dataset.verify);
+    if (investigate) investigateWithGemini(investigate.dataset.investigate, investigate);
   });
   $('#search-input').addEventListener('input', (event) => { state.query = event.target.value.trim(); renderIssues(); });
   $('#store-filter').addEventListener('change', async (event) => {
