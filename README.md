@@ -8,6 +8,10 @@ The demo uses fictional Bengaluru operations data. It brings deterministic calcu
 
 > **Demo data:** Stores, products, events, amounts, customer claims, actions, and follow-up outcomes are synthetic. DarkOps is not connected to a live retailer or delivery network.
 
+## Video demonstration
+
+[Watch the DarkOps demo on Google Drive](https://drive.google.com/drive/folders/1G_uGXGzAQf1lQUeWw6q_gIrns0Vg-rjO?usp=sharing)
+
 ## From signal to follow-up
 
 1. **Spot an unusual pattern.** The dashboard summarizes loss, open cases, waste rate, and stock nearing expiry. Cases link signals to the store and product involved.
