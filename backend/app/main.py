@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from pathlib import Path
+import json
 import os
 
 from fastapi import FastAPI, HTTPException, Query, UploadFile, File, Form, Body, Request, Response
@@ -9,6 +10,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from google.cloud import storage
 from google.auth.transport.requests import Request as GoogleAuthRequest
 from google.oauth2 import id_token as google_id_token
 
@@ -20,6 +22,7 @@ from backend.app.google_cloud import (
     analyze_with_gemini,
     cloud_status,
     get_bigquery_client,
+    get_firestore_client,
     load_case_overrides,
     persist_case,
 )
@@ -27,30 +30,48 @@ from backend.app.forensics import forensics_agent, ForensicResult
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = OperationsData()
+SAMPLE_IMAGE_BUCKET = os.environ.get("DARKOPS_SAMPLE_IMAGE_BUCKET", "").strip()
+def sample_image_url(sample_id: str) -> str:
+    return f"/api/sample-images/{sample_id}"
+
+
+def load_sample_image(sample_id: str) -> bytes:
+    record = SAMPLE_IMAGE_BY_ID.get(sample_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Sample image not found")
+    bucket_name = record.get("gcs_bucket") or SAMPLE_IMAGE_BUCKET
+    object_name = record.get("object_name")
+    if bucket_name and object_name:
+        try:
+            return storage.Client(project=PROJECT_ID).bucket(bucket_name).blob(object_name).download_as_bytes()
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail="Could not load the sample image from Cloud Storage") from exc
+    local_filename = record.get("local_filename")
+    if not local_filename or Path(local_filename).name != local_filename:
+        raise HTTPException(status_code=404, detail="Local sample image not found")
+    image_path = ROOT / "frontend" / "complaints" / local_filename
+    if not image_path.is_file():
+        raise HTTPException(status_code=404, detail="Local sample image not found")
+    return image_path.read_bytes()
 
 PHOTO_MAPPING = {
     "DO-2048": {
-        "complaint_photo": "/complaints/demo-tomato-rot.jpg",
         "complaint_text": "Tomatoes arrived rotten, squishy, and mouldy straight out of the delivery bag. Unusable.",
         "scenario": "Scenario 1: Bad Supplier Batch (B-4471)",
     },
     "DO-2047": {
-        "complaint_photo": "/complaints/demo-leaking-milk.jpg",
         "complaint_text": "Farm fresh milk packet had an expiry date of today and tasted sour. Chilling breach.",
         "scenario": "Scenario: Near-Expiry Exposure & Temperature Breach",
     },
     "DO-2046": {
-        "complaint_photo": "/complaints/demo-torn-flour-bag.jpg",
         "complaint_text": "Atta bag seam tore during packing; flour leaked inside customer carry bag.",
         "scenario": "Scenario 4: Packing Station Mechanical Handling",
     },
     "DO-2045": {
-        "complaint_photo": "/complaints/demo-wilted-spinach.jpg",
         "complaint_text": "Leaves are wilted and slimy inside sealed packet. Lot SP-884.",
         "scenario": "Scenario 1: Supplier Batch Quality Spike",
     },
     "DO-2044": {
-        "complaint_photo": "/complaints/demo-no-defect-bread.jpg",
         "complaint_text": "Customer says the brown bread tasted stale, but the bag appears sealed and intact.",
         "scenario": "Scenario 6: Demand Dip / Potential Red Herring",
     },
@@ -73,7 +94,6 @@ EXTRA_SCENARIOS = [
         "color": "blue",
         "summary": "42 customers reported completely melted ice cream upon doorstep arrival across Store A and Store B.",
         "signal": "Refund rate jumped from 0.8% to 14.2% across peak afternoon delivery hours.",
-        "complaint_photo": "/complaints/demo-melted-icecream.jpg",
         "complaint_text": "The ice cream was completely liquid. Packaging was sticky and leaking.",
         "scenario": "Scenarios 2 & 3: Failing Freezer vs Slow Zone in Heat",
         "evidence": [
@@ -105,7 +125,6 @@ EXTRA_SCENARIOS = [
         "color": "red",
         "summary": "Perceptual-hash comparison flagged 9 demo refund claims with near-identical photos across 3 synthetic customer accounts.",
         "signal": "98.4% perceptual-hash similarity between the demo claims.",
-        "complaint_photo": "/complaints/abuse/abuse_claim_2.jpg",
         "complaint_text": "Chocolate arrived melted and squished. Please refund immediately to UPI.",
         "scenario": "Scenario 5: Refund Abuse (Reused Photo)",
         "evidence": [
@@ -124,13 +143,21 @@ EXTRA_SCENARIOS = [
 
 def load_initial_issues():
     rows = [dict(issue) for issue in DATA.issues]
+    rows.extend(EXTRA_SCENARIOS)
     for row in rows:
         mapping = PHOTO_MAPPING.get(row["id"], {})
-        row["complaint_photo"] = mapping.get("complaint_photo", "/complaints/rotten_staples_1.jpg")
-        row["complaint_text"] = mapping.get("complaint_text", row.get("signal", ""))
-        row["scenario"] = mapping.get("scenario", "Operational Anomaly")
-    # Add extra scenarios
-    rows.extend(EXTRA_SCENARIOS)
+        sample_record = next(
+            (record for record in SAMPLE_IMAGE_CATALOG if row["id"] in record.get("linked_case_ids", [])),
+            None,
+        )
+        sample_id = sample_record["id"] if sample_record else None
+        if sample_id:
+            row["sample_image_id"] = sample_id
+            row["complaint_photo"] = sample_image_url(sample_id)
+        else:
+            row["complaint_photo"] = "/complaints/rotten_staples_1.jpg"
+        row["complaint_text"] = mapping.get("complaint_text", row.get("complaint_text", row.get("signal", "")))
+        row["scenario"] = mapping.get("scenario", row.get("scenario", "Operational Anomaly"))
     if USE_FIRESTORE:
         for issue_id, saved in load_case_overrides().items():
             issue = next((item for item in rows if item["id"] == issue_id), None)
@@ -140,7 +167,6 @@ def load_initial_issues():
                         issue[field] = saved[field]
     return rows
 
-ISSUES = load_initial_issues()
 app = FastAPI(title="DarkOps API", version="0.2.0", description="Evidence-backed dark-store operations demo")
 app.add_middleware(
     CORSMiddleware,
@@ -342,100 +368,45 @@ def list_stores():
 
 # --- GEMINI MULTIMODAL FORENSICS ENDPOINTS ---
 
-SAMPLE_PHOTOS = [
-    {
-        "id": "sample-tomato-rot",
-        "image_source": "AI-generated demo photo",
-        "title": "Tomato Rot Spike (Supplier Batch B-4471)",
-        "scenario": "Scenario 1: Bad Supplier Batch",
-        "product": "Local tomatoes · 1 kg",
-        "complaint_text": "Tomatoes arrived rotten, squishy, and mouldy straight out of the delivery bag.",
-        "path": "complaints/demo-tomato-rot.jpg",
-        "url": "/complaints/demo-tomato-rot.jpg",
-        "expected_defect": "Mouldy / Rot",
-        "batch_code": "B-4471",
-    },
-    {
-        "id": "sample-icecream-melt",
-        "image_source": "AI-generated demo photo",
-        "title": "Melted Ice Cream (Freezer F2 vs Hot Zone 3)",
-        "scenario": "Scenarios 2 & 3: Cold-Chain Breaches",
-        "product": "Amul Chocobar · 70 ml",
-        "complaint_text": "Ice cream was completely melted into liquid soup upon delivery. Unacceptable!",
-        "path": "complaints/demo-melted-icecream.jpg",
-        "url": "/complaints/demo-melted-icecream.jpg",
-        "expected_defect": "Melted",
-        "batch_code": "IC-9821",
-    },
-    {
-        "id": "sample-crushed-pack",
-        "image_source": "AI-generated demo photo",
-        "title": "Crushed Eggs & Broken Pack",
-        "scenario": "Scenario 4: Packing Station Mechanical Failure",
-        "product": "Farm eggs · 6 pack",
-        "complaint_text": "Carton was crushed inside the bag, egg shells smashed and leaking everywhere.",
-        "path": "complaints/demo-crushed-eggs.jpg",
-        "url": "/complaints/demo-crushed-eggs.jpg",
-        "expected_defect": "Crushed / Damaged",
-        "batch_code": "EG-1104",
-    },
-    {
-        "id": "sample-expired-dairy",
-        "image_source": "AI-generated demo photo",
-        "title": "Milk Freshness Claim (FIFO Check)",
-        "scenario": "Near-Expiry Exposure",
-        "product": "Farm fresh milk · 500 ml",
-        "complaint_text": "Milk was delivered with today's expiry date and smelled sour immediately.",
-        "path": "complaints/demo-leaking-milk.jpg",
-        "url": "/complaints/demo-leaking-milk.jpg",
-        "expected_defect": "Expired",
-        "batch_code": "MK-8820",
-    },
-    {
-        "id": "sample-abuse-claim-1",
-        "image_source": "AI-generated demo photo",
-        "title": "Original Claim (Customer A)",
-        "scenario": "Scenario 5: Refund Abuse (Base Photo)",
-        "product": "Dark Chocolate Slab · 100 g",
-        "complaint_text": "Chocolate melted and crushed in heat.",
-        "path": "complaints/abuse/abuse_claim_6.jpg",
-        "url": "/complaints/abuse/abuse_claim_6.jpg",
-        "claim_id": "CLM-ABUSE-106",
-        "expected_defect": "Melted",
-        "batch_code": "CH-5512",
-    },
-    {
-        "id": "sample-abuse-claim-2",
-        "image_source": "AI-generated duplicate demo photo",
-        "title": "Duplicate Photo Claim (Customer B)",
-        "scenario": "Scenario 5: Refund Abuse (Reused Photo)",
-        "product": "Dark Chocolate Slab · 100 g",
-        "complaint_text": "Chocolate melted. Need refund to UPI.",
-        "path": "complaints/abuse/abuse_claim_7.jpg",
-        "url": "/complaints/abuse/abuse_claim_7.jpg",
-        "claim_id": "CLM-ABUSE-107",
-        "expected_defect": "Duplicate Claim Photo (Abuse)",
-        "batch_code": "CH-5512",
-    },
-    {
-        "id": "sample-no-defect",
-        "image_source": "AI-generated demo photo",
-        "title": "Bread Order (Customer False Alarm)",
-        "scenario": "Scenario 6: Red Herring (No Defect)",
-        "product": "Brown bread · 400 g",
-        "complaint_text": "Customer claimed bread was stale, but seal is intact.",
-        "path": "complaints/demo-no-defect-bread.jpg",
-        "url": "/complaints/demo-no-defect-bread.jpg",
-        "expected_defect": "No Defect Found",
-        "batch_code": "BR-9011",
-    },
-]
+SAMPLE_IMAGE_DEFAULTS = json.loads((ROOT / "data" / "sample_images.json").read_text(encoding="utf-8"))
 
+
+def load_sample_image_catalog():
+    if not USE_FIRESTORE:
+        return SAMPLE_IMAGE_DEFAULTS
+    try:
+        snapshots = get_firestore_client().collection("darkops_sample_images").stream()
+        records = [{"id": snapshot.id, **(snapshot.to_dict() or {})} for snapshot in snapshots]
+        if records:
+            return sorted(records, key=lambda record: record.get("display_order", 9999))
+        return SAMPLE_IMAGE_DEFAULTS
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Could not load sample image metadata from Firestore") from exc
+
+
+SAMPLE_IMAGE_CATALOG = load_sample_image_catalog()
+SAMPLE_IMAGE_BY_ID = {record["id"]: record for record in SAMPLE_IMAGE_CATALOG}
+for sample_record in SAMPLE_IMAGE_CATALOG:
+    sample_record["url"] = sample_image_url(sample_record["id"])
+SAMPLE_PHOTOS = [record for record in SAMPLE_IMAGE_CATALOG if record.get("display_in_lab", True)]
+ISSUES = load_initial_issues()
 
 @app.get("/api/forensics/samples")
 def list_forensic_samples():
-    """Returns preset complaint photos for testing Gemini photo forensics."""
+    """Returns preset sample image metadata and authenticated image URLs."""
     return SAMPLE_PHOTOS
+
+
+@app.get("/api/sample-images/{sample_id}")
+def get_sample_image(sample_id: str):
+    """Serves private demo images from Cloud Storage, with a local-file fallback."""
+    return Response(
+        content=load_sample_image(sample_id),
+        media_type="image/jpeg",
+        headers={"Cache-Control": "private, max-age=3600"},
+    )
 
 
 @app.post("/api/forensics/analyze-sample")
@@ -446,14 +417,10 @@ async def analyze_sample_photo(payload: dict = Body(...)):
     if not sample:
         raise HTTPException(status_code=404, detail="Sample photo not found")
 
-    image_path = ROOT / "frontend" / sample["path"]
-    if not image_path.exists():
-        raise HTTPException(status_code=404, detail=f"Image file missing on disk: {sample['path']}")
-
-    image_bytes = image_path.read_bytes()
+    image_bytes = load_sample_image(sample["id"])
     result = await forensics_agent.analyze_photo(
         image_bytes=image_bytes,
-        filename=image_path.name,
+        filename=sample.get("local_filename", sample["id"]),
         complaint_text=sample.get("complaint_text", ""),
         product_name=sample.get("product", ""),
         claim_id=sample.get("claim_id", sample.get("id")),
@@ -490,21 +457,12 @@ async def run_issue_forensics(issue_id: str):
     if not issue:
         raise HTTPException(status_code=404, detail="Investigation not found")
 
-    photo_path = issue.get("complaint_photo")
-    if not photo_path:
-        # Default assignment if not already mapped
-        photo_path = "/complaints/rotten_staples_1.jpg"
-
-    clean_path = photo_path.lstrip("/")
-    image_path = ROOT / "frontend" / clean_path
-    if not image_path.exists():
-        image_bytes = b""
-    else:
-        image_bytes = image_path.read_bytes()
+    sample_id = issue.get("sample_image_id", "sample-tomato-rot")
+    image_bytes = load_sample_image(sample_id)
 
     result = await forensics_agent.analyze_photo(
         image_bytes=image_bytes,
-        filename=image_path.name,
+        filename=SAMPLE_IMAGE_BY_ID[sample_id].get("local_filename", sample_id),
         complaint_text=issue.get("complaint_text", issue.get("signal", "")),
         product_name=issue.get("product", ""),
         claim_id=issue["id"],

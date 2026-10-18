@@ -115,6 +115,10 @@ def cloud_status() -> dict[str, Any]:
         "location": LOCATION,
         "vertex_ai": {"configured": bool(PROJECT_ID), "model": GEMINI_MODEL, "trigger": "manual per investigation"},
         "bigquery": {"configured": bool(PROJECT_ID), "dataset": BIGQUERY_DATASET, "active_data_backend": "bigquery" if USE_BIGQUERY else "csv", "purpose": "synthetic operations analytics tables"},
-        "firestore": {"configured": bool(PROJECT_ID and USE_FIRESTORE), "collection": "darkops_cases" if USE_FIRESTORE else None},
+        "firestore": {
+            "configured": bool(PROJECT_ID and USE_FIRESTORE),
+            "collections": ["darkops_cases", "darkops_sample_images"] if USE_FIRESTORE else [],
+            "sample_images_source": "firestore" if USE_FIRESTORE else "local JSON catalog",
+        },
         "authentication": "Application Default Credentials",
     }

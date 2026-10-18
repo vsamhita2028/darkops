@@ -10,7 +10,7 @@ Static operations dashboard (HTML/CSS/JavaScript)
 Manager requests Gemini analysis (Vertex AI) → records simulated action → checks simulated follow-up (Firestore)
 ```
 
-The generator creates four fictional dark stores, 40 products, and 56 days of operations. It writes dimension and event tables to `data/samples/`; pass the same `--seed` and `--as-of` arguments to reproduce the same snapshot. Those rows are synchronized into BigQuery for the deployed app; local runs default to CSV. The API applies deterministic calculations for wastage, expiry, inventory variance, and returns, then renders the metrics in the frontend. User-requested investigation and image-forensics flows call Gemini through Vertex AI. Workflow changes and AI results persist in Firestore on the deployed app. All business data remains synthetic.
+The generator creates four fictional dark stores, 40 products, and 56 days of operations. It writes dimension and event tables to `data/samples/`; pass the same `--seed` and `--as-of` arguments to reproduce the same snapshot. Those rows are synchronized into BigQuery for the deployed app; local runs default to CSV. The API applies deterministic calculations for wastage, expiry, inventory variance, and returns, then renders the metrics in the frontend. User-requested investigation and image-forensics flows call Gemini through Vertex AI. Workflow changes, AI results, and the demo image catalog with GCS object paths persist in Firestore. The sample images live in a private regional Cloud Storage bucket and are served through authenticated Cloud Run routes. All business data remains synthetic.
 
 ## Current API
 
