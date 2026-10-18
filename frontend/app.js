@@ -268,8 +268,8 @@ async function initializeGoogleSignIn() {
         use_fedcm_for_prompt: true,
       });
       window.google.accounts.id.renderButton($('#google-signin-button'), {
-        type: 'standard', theme: 'outline', size: 'large', text: 'signin_with',
-        shape: 'rectangular', logo_alignment: 'left', width: 280,
+        type: 'standard', theme: 'outline', size: 'medium', text: 'signin_with',
+        shape: 'rectangular', logo_alignment: 'left', width: 260,
       });
     };
 
@@ -594,6 +594,29 @@ function toggleSeverityFilter() {
   button.parentElement.append(pop);
 }
 
+function setMobileSidebarOpen(open) {
+  const sidebar = $('#app-sidebar');
+  const backdrop = $('#sidebar-backdrop');
+  const toggle = $('#sidebar-toggle');
+  if (!sidebar || !backdrop || !toggle) return;
+
+  sidebar.classList.toggle('open', open);
+  backdrop.hidden = !open;
+  toggle.setAttribute('aria-expanded', String(open));
+  toggle.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
+  document.body.classList.toggle('sidebar-open', open);
+}
+
+function setupMobileSidebarEvents() {
+  $('#sidebar-toggle')?.addEventListener('click', () => {
+    setMobileSidebarOpen(!$('#app-sidebar')?.classList.contains('open'));
+  });
+  $('#sidebar-backdrop')?.addEventListener('click', () => setMobileSidebarOpen(false));
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 610) setMobileSidebarOpen(false);
+  });
+}
+
 function setupHowItWorksEvents() {
   const modal = $('#how-it-works-modal');
   const openModal = () => {
@@ -698,6 +721,7 @@ function setupWorkspaceSwitcherEvents() {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       toggleDropdown(false);
+      setMobileSidebarOpen(false);
       const hiwModal = $('#how-it-works-modal');
       if (hiwModal) hiwModal.hidden = true;
       closeStoresModal();
@@ -1140,6 +1164,7 @@ function setupFeatureModalEvents() {
 }
 
 function setupEvents() {
+  setupMobileSidebarEvents();
   setupHowItWorksEvents();
   setupWorkspaceSwitcherEvents();
   setupStoresModalEvents();
@@ -1354,6 +1379,7 @@ function setupEvents() {
   }));
   $$('.nav-item').forEach((item) => item.addEventListener('click', (event) => {
     const target = item.dataset.nav;
+    setMobileSidebarOpen(false);
     if (FEATURE_CARDS[target]) {
       event.preventDefault();
       openFeatureModal(target);

@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/styles.css?v=sidebar-auth-visibility-20261018" />
   </head>
   <body>
     <div class="auth-gate" id="auth-gate" role="dialog" aria-modal="true" aria-labelledby="auth-title" hidden>
@@ -162,7 +162,8 @@
     </div>
 
     <div class="app-shell">
-      <aside class="sidebar">
+      <div class="sidebar-backdrop" id="sidebar-backdrop" hidden></div>
+      <aside class="sidebar" id="app-sidebar">
         <a class="brand" href="#overview" aria-label="DarkOps home">
           <span class="brand-mark"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 6.5h11.2c6 0 9.8 3.7 9.8 9.5s-3.8 9.5-9.8 9.5H7V6.5Zm6.2 5.2v8.6h4.5c2.6 0 4.1-1.7 4.1-4.3s-1.5-4.3-4.1-4.3h-4.5Z" fill="currentColor"/><path d="M4 3v26" stroke="#B8F36C" stroke-width="3" stroke-linecap="round"/></svg></span>
           <span class="brand-type"><strong>darkops</strong><small>by SHERLOPS</small></span>
@@ -266,12 +267,12 @@
             <button class="profile-signout" id="sign-out-button" type="button">Sign out</button>
             <button class="profile-signin" id="sign-in-button" type="button" hidden>Sign in with Google</button>
           </div>
-          <div class="sidebar-footer"><span class="status-dot"></span> All systems operational</div>
         </div>
       </aside>
 
       <main class="main-content">
         <header class="topbar">
+          <button type="button" class="sidebar-toggle" id="sidebar-toggle" aria-label="Open navigation" aria-controls="app-sidebar" aria-expanded="false">☰</button>
           <div class="breadcrumbs"><span>Workspace</span><span class="crumb-sep">/</span><strong id="breadcrumb-current">Overview</strong></div>
           <div class="topbar-actions">
             <span class="cloud-pill" id="gcp-pill">GCP not configured</span>
@@ -407,6 +408,6 @@
     </aside>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="/app.js?v=20261018-feature-cards" defer></script>
+    <script src="/app.js?v=signin-button-20261018" defer></script>
   </body>
 </html>

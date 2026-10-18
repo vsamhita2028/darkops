@@ -83,7 +83,8 @@
 .auth-actions-wrap{width:100%;margin-top:4px}
 .profile-signout{width:100%;padding:5px 12px 5px 48px;border:0;background:transparent;color:#778379;text-align:left;font:inherit;font-size:10px;cursor:pointer}
 .profile-signout:hover{color:#245b38}
-.profile-signin{width:100%;padding:7px 12px;border:1px solid #1a73e8;border-radius:6px;background:#e8f0fe;color:#1967d2;text-align:center;font:inherit;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:background .15s}
+.profile-signin{width:100%;min-height:30px;padding:4px 9px;border:1px solid #1a73e8;border-radius:6px;background:#e8f0fe;color:#1967d2;text-align:center;font:inherit;font-size:10px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:background .15s}
+.profile-signin[hidden],.profile-signout[hidden],.topbar-signin-btn[hidden]{display:none!important}
 .profile-signin:hover{background:#d2e3fc;color:#174ea6}
 .profile-button.is-signed-out{cursor:pointer;border-radius:8px;transition:background .15s}
 .profile-button.is-signed-out:hover{background:#f5f8f3}
@@ -237,3 +238,54 @@ button.workspace-switcher:hover{background:#f6f9f3;border-color:#d5ddd3}
 .view-stores-link b{font-size:13px;margin-left:3px}
 @media(max-width:720px){.stores-modal-grid{grid-template-columns:1fr}.stores-cluster-kpis{grid-template-columns:repeat(2,1fr)}.stores-modal-card{padding:22px 16px}}
 
+/* Responsive navigation and explicit button resets (cache-busted in index.html). */
+button{font-family:inherit;-webkit-appearance:none;appearance:none}
+.help-link-btn,.profile-signout{border:0!important;background:transparent!important;box-shadow:none!important;-webkit-appearance:none;appearance:none}
+.help-link-btn{padding:0;color:#3b714a}
+.profile-signout{color:#778379}
+.help-link-btn:focus-visible,.profile-signout:focus-visible,.sidebar-toggle:focus-visible{outline:2px solid #4b8052;outline-offset:3px}
+.sidebar{transition:transform .22s ease}
+.sidebar-backdrop{display:none}
+.sidebar-backdrop[hidden]{display:none!important}
+.sidebar-toggle{display:none}
+.button,.profile-signin,.topbar-signin-btn,.store-action-btn,.cluster-store-btn{font-family:inherit;-webkit-appearance:none;appearance:none}
+.hiw-card,.stores-modal-card{overscroll-behavior:contain}
+
+@media(max-width:610px){
+  body.sidebar-open{overflow:hidden}
+  .sidebar{width:min(280px,85vw);padding:19px 14px 14px;align-items:stretch;overflow-y:auto;transform:translateX(-102%);box-shadow:0 12px 38px rgba(20,35,24,.2)}
+  .sidebar.open{transform:translateX(0)}
+  .sidebar-backdrop{position:fixed;inset:0;z-index:4;background:rgba(20,31,24,.42)}
+  .sidebar-backdrop:not([hidden]){display:block}
+  .sidebar .brand{padding:0 10px;margin-bottom:24px}
+  .sidebar .brand-type,.sidebar .workspace-copy,.sidebar .nav-label,.sidebar .nav-item>span:not(.nav-icon),.sidebar .help-card,.sidebar .profile-copy,.sidebar .profile-more,.sidebar .sidebar-footer{display:initial}
+  .sidebar .brand-type,.sidebar .workspace-copy,.sidebar .profile-copy{display:flex}
+  .sidebar .nav-label{display:block}
+  .sidebar .nav-item>span:not(.nav-icon){display:inline}
+  .sidebar .help-card{display:block}
+  .sidebar .sidebar-footer{display:flex}
+  .sidebar .workspace-switcher{width:100%;height:55px;padding:0 10px;justify-content:flex-start;margin-bottom:22px}
+  .sidebar .workspace-switcher>.chevron{display:block}
+  .sidebar .main-nav{width:100%;align-items:stretch}
+  .sidebar .nav-item{width:100%;height:42px;padding:0 12px;justify-content:flex-start}
+  .sidebar .nav-item .nav-count{display:inline-flex}
+  .sidebar .sidebar-bottom{width:100%;display:block}
+  .sidebar .profile-button{width:100%;padding:9px 5px 12px;border-bottom:1px solid var(--line)}
+  .main-content{margin-left:0}
+  .topbar{gap:9px;padding:0 13px}
+  .sidebar-toggle{display:inline-grid;place-items:center;flex:none;width:34px;height:34px;padding:0;border:1px solid #e2e8df;border-radius:7px;background:#fff;color:#36543c;font-size:18px;line-height:1;cursor:pointer}
+  .breadcrumbs{min-width:0;flex:1;overflow:hidden;white-space:nowrap}
+  .topbar-actions{gap:9px}
+  .cloud-pill,.auth-pill,.top-divider,.top-user{display:none}
+  .how-it-works-modal,.stores-modal{padding:12px;align-items:start;overflow-y:auto}
+  .hiw-card,.stores-modal-card{width:100%;max-height:calc(100dvh - 24px);padding:21px 15px 16px;border-radius:14px}
+  .hiw-header{padding-right:27px;gap:10px;margin-bottom:16px}
+  .hiw-header h2,.stores-modal-header h2{font-size:18px}
+  .hiw-subtitle,.stores-modal-subtitle{font-size:11px}
+  .hiw-grid{gap:8px}
+  .hiw-step-card{padding:12px}
+  .hiw-actions button{flex:1;min-width:120px}
+  .stores-modal-header{padding-right:24px;gap:10px}
+  .stores-modal-actions{width:100%;margin-left:0}
+  .stores-modal-actions .button{flex:1;min-height:36px;height:auto;white-space:normal}
+}
