@@ -195,7 +195,14 @@ async def require_google_login(request: Request, call_next):
     if not client_id:
         return await call_next(request)
     path = request.url.path
-    public_api_paths = {"/api/health", "/api/auth/config", "/api/auth/session", "/api/auth/logout"}
+    public_api_paths = {
+        "/api/health",
+        "/api/auth/config",
+        "/api/auth/session",
+        "/api/auth/logout",
+        "/api/auth/login",
+        "/api/profile",
+    }
     if path.startswith("/api/") and path not in public_api_paths:
         token = request.cookies.get("darkops_google_session", "")
         if not token:
@@ -204,6 +211,13 @@ async def require_google_login(request: Request, call_next):
             request.state.google_user = verify_google_id_token(token)
         except HTTPException as exc:
             return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+    elif path == "/api/profile" and client_id:
+        token = request.cookies.get("darkops_google_session", "")
+        if token:
+            try:
+                request.state.google_user = verify_google_id_token(token)
+            except Exception:
+                pass
     return await call_next(request)
 
 
@@ -221,11 +235,30 @@ def health():
 def profile(request: Request):
     """Return the name and email from the verified Google sign-in token."""
     user = getattr(request.state, "google_user", None) or {}
+    is_signed_out = request.cookies.get("darkops_signed_out") == "true"
+    client_id = os.environ.get("GOOGLE_OAUTH_CLIENT_ID", "").strip()
+
+    if user and not is_signed_out:
+        return {
+            "display_name": user.get("name") or user.get("given_name") or "Google User",
+            "email": user.get("email", ""),
+            "picture": user.get("picture", ""),
+            "authenticated": True,
+        }
+
+    if not client_id and not is_signed_out:
+        return {
+            "display_name": "Operations Lead",
+            "email": "ops@darkops.internal",
+            "picture": "",
+            "authenticated": True,
+        }
+
     return {
-        "display_name": user.get("name") or user.get("given_name") or "Operations Lead",
-        "email": user.get("email", "ops@darkops.internal"),
-        "picture": user.get("picture", ""),
-        "authenticated": bool(user),
+        "display_name": "Signed Out",
+        "email": "Guest mode",
+        "picture": "",
+        "authenticated": False,
     }
 
 
@@ -242,6 +275,7 @@ def google_auth_config():
 def google_auth_session(payload: GoogleCredential, response: Response, request: Request):
     """Validate a Google Sign-In ID token before the browser starts an app session."""
     claims = verify_google_id_token(payload.credential)
+    response.delete_cookie("darkops_signed_out", path="/")
     response.set_cookie(
         key="darkops_google_session",
         value=payload.credential,
@@ -266,7 +300,23 @@ def google_auth_logout(response: Response, request: Request):
         secure=request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https",
         samesite="lax",
     )
+    response.set_cookie(
+        "darkops_signed_out", "true", path="/",
+        httponly=False, max_age=86400, samesite="lax"
+    )
     return {"signed_out": True}
+
+
+@app.post("/api/auth/login")
+def dev_login(response: Response):
+    """Allow quick sign-in in dev/demo mode when Google OAuth is not configured."""
+    response.delete_cookie("darkops_signed_out", path="/")
+    return {
+        "display_name": "Operations Lead",
+        "email": "ops@darkops.internal",
+        "picture": "",
+        "authenticated": True,
+    }
 
 
 @app.get("/api/dataset")

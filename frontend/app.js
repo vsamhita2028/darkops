@@ -19,7 +19,7 @@ async function request(path, options = {}) {
   const response = await fetch(path, { ...options, credentials: 'same-origin' });
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    if (response.status === 401 && path !== '/api/auth/session' && path !== '/api/auth/logout') {
+    if (response.status === 401 && path !== '/api/auth/session' && path !== '/api/auth/logout' && path !== '/api/profile' && path !== '/api/issues' && path !== '/api/overview') {
       showAuthGate(body.detail || 'Please sign in with Google to continue.');
     }
     throw new Error(body.detail || `Request failed (${response.status})`);
@@ -43,20 +43,112 @@ async function loadData() {
   loadCloudStatus();
 }
 
-function renderProfile(profile) {
+function renderSignedInUI(profile) {
+  state.authenticated = true;
   const name = profile.display_name || 'Google User';
   const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0].toUpperCase()).join('') || 'GU';
-  $$('.profile-copy strong').forEach((node) => { node.textContent = name; });
-  $$('.profile-copy small').forEach((node) => { node.textContent = profile.email || ''; });
-  $$('.profile-avatar').forEach((node) => { node.textContent = initials; });
-  $('#greeting-name').textContent = name;
+
+  // Sidebar profile
+  const sidebarAvatar = $('#sidebar-avatar');
+  if (sidebarAvatar) {
+    sidebarAvatar.textContent = initials;
+    sidebarAvatar.classList.remove('signed-out');
+  }
+  const sidebarName = $('#sidebar-name');
+  if (sidebarName) sidebarName.textContent = name;
+  const sidebarEmail = $('#sidebar-email');
+  if (sidebarEmail) sidebarEmail.textContent = profile.email || 'Google Account';
+  const profileBtn = $('#profile-button');
+  if (profileBtn) profileBtn.classList.remove('is-signed-out');
+
+  // Greeting
+  const greeting = $('#greeting-name');
+  if (greeting) greeting.textContent = name;
+
+  // Topbar
+  const topAvatar = $('#top-avatar');
+  if (topAvatar) topAvatar.textContent = initials;
+
+  const authPill = $('#auth-status-pill');
+  if (authPill) {
+    authPill.className = 'auth-pill signed-in';
+    const authText = $('#auth-status-text');
+    if (authText) authText.textContent = 'Signed in';
+  }
+
+  // Toggle buttons
+  const signoutBtn = $('#sign-out-button');
+  if (signoutBtn) signoutBtn.hidden = false;
+  const signinBtn = $('#sign-in-button');
+  if (signinBtn) signinBtn.hidden = true;
+  const topbarSigninBtn = $('#topbar-signin-btn');
+  if (topbarSigninBtn) topbarSigninBtn.hidden = true;
+
+  // Hide signed-out banner
+  const banner = $('#signed-out-banner');
+  if (banner) banner.hidden = true;
 }
 
-function showAuthGate(message = '') {
+function renderSignedOutUI() {
+  state.authenticated = false;
+
+  // Sidebar profile
+  const sidebarAvatar = $('#sidebar-avatar');
+  if (sidebarAvatar) {
+    sidebarAvatar.textContent = '👤';
+    sidebarAvatar.classList.add('signed-out');
+  }
+  const sidebarName = $('#sidebar-name');
+  if (sidebarName) sidebarName.textContent = 'Signed Out';
+  const sidebarEmail = $('#sidebar-email');
+  if (sidebarEmail) sidebarEmail.textContent = 'Guest mode · Click to sign in';
+  const profileBtn = $('#profile-button');
+  if (profileBtn) profileBtn.classList.add('is-signed-out');
+
+  // Greeting
+  const greeting = $('#greeting-name');
+  if (greeting) greeting.textContent = 'Guest';
+
+  // Topbar
+  const topAvatar = $('#top-avatar');
+  if (topAvatar) topAvatar.textContent = '—';
+
+  const authPill = $('#auth-status-pill');
+  if (authPill) {
+    authPill.className = 'auth-pill signed-out';
+    const authText = $('#auth-status-text');
+    if (authText) authText.textContent = 'Signed out';
+  }
+
+  // Toggle buttons
+  const signoutBtn = $('#sign-out-button');
+  if (signoutBtn) signoutBtn.hidden = true;
+  const signinBtn = $('#sign-in-button');
+  if (signinBtn) signinBtn.hidden = false;
+  const topbarSigninBtn = $('#topbar-signin-btn');
+  if (topbarSigninBtn) topbarSigninBtn.hidden = false;
+
+  // Show signed-out banner
+  const banner = $('#signed-out-banner');
+  if (banner) banner.hidden = false;
+}
+
+function showAuthGate(message = '', isSignedOut = false) {
   const gate = $('#auth-gate');
   if (gate) gate.hidden = false;
+  const title = $('#auth-title');
+  const desc = $('#auth-desc');
   const status = $('#auth-status');
-  if (status && message) status.textContent = message;
+
+  if (isSignedOut) {
+    if (title) title.textContent = 'You are signed out';
+    if (desc) desc.textContent = 'You have signed out of DarkOps. Sign in with Google to resume full cluster operations, or continue viewing in guest mode.';
+    if (status) status.textContent = message || 'Signed out successfully.';
+  } else {
+    if (title) title.textContent = 'Sign in to continue';
+    if (desc) desc.textContent = 'Use your Google account to open the workspace. Your Google profile name will appear automatically after sign-in.';
+    if (status && message) status.textContent = message;
+  }
 }
 
 function hideAuthGate() {
@@ -64,21 +156,72 @@ function hideAuthGate() {
   if (gate) gate.hidden = true;
 }
 
+async function handleSignOut() {
+  try {
+    await request('/api/auth/logout', { method: 'POST' });
+  } catch (err) {
+    console.warn('Logout request failed:', err);
+  }
+  renderSignedOutUI();
+  showToast('✓ Signed out successfully.');
+  showAuthGate('Signed out successfully. Sign in with Google to resume.', true);
+  initializeGoogleSignIn();
+}
+
+async function handleDevSignIn() {
+  try {
+    const profile = await request('/api/auth/login', { method: 'POST' });
+    renderSignedInUI(profile);
+    hideAuthGate();
+    showToast('Signed in as Operations Lead.');
+  } catch (err) {
+    showToast(`Sign in error: ${err.message}`);
+  }
+}
+
+function setupAuthEvents() {
+  $('#sign-out-button')?.addEventListener('click', handleSignOut);
+  $('#sign-in-button')?.addEventListener('click', () => {
+    showAuthGate('Please sign in to continue.');
+    initializeGoogleSignIn();
+  });
+  $('#topbar-signin-btn')?.addEventListener('click', () => {
+    showAuthGate('Please sign in to continue.');
+    initializeGoogleSignIn();
+  });
+  $('#banner-signin-btn')?.addEventListener('click', () => {
+    showAuthGate('Please sign in to continue.');
+    initializeGoogleSignIn();
+  });
+  $('#profile-button')?.addEventListener('click', () => {
+    if (!state.authenticated) {
+      showAuthGate('Please sign in to continue.');
+      initializeGoogleSignIn();
+    }
+  });
+  $('#auth-gate-close')?.addEventListener('click', hideAuthGate);
+  $('#guest-continue-button')?.addEventListener('click', hideAuthGate);
+  $('#dev-signin-button')?.addEventListener('click', handleDevSignIn);
+}
+
 async function startAuthenticatedApp() {
-  showAuthGate();
-  $('#sign-out-button')?.addEventListener('click', async () => {
-    try { await request('/api/auth/logout', { method: 'POST' }); } catch { /* the page will return to sign-in either way */ }
-    window.location.reload();
-  }, { once: true });
+  setupAuthEvents();
   try {
     const profile = await request('/api/profile');
-    renderProfile(profile);
-    hideAuthGate();
-    await loadData();
-    return;
-  } catch {
-    // No valid server session; show the Google sign-in prompt below.
+    if (profile && profile.authenticated) {
+      renderSignedInUI(profile);
+      hideAuthGate();
+      await loadData();
+      return;
+    }
+  } catch (error) {
+    console.warn('Profile fetch unauthenticated:', error);
   }
+
+  // Not authenticated or explicitly signed out
+  renderSignedOutUI();
+  hideAuthGate();
+  await loadData();
   initializeGoogleSignIn();
 }
 
@@ -87,7 +230,13 @@ async function initializeGoogleSignIn() {
   googleSignInInitialized = true;
   try {
     const { client_id: clientId } = await request('/api/auth/config');
-    if (!clientId) throw new Error('Google sign-in is not configured for this app.');
+    if (!clientId) {
+      $('#dev-signin-container')?.removeAttribute('hidden');
+      $('#auth-status').textContent = 'Local development mode (Google OAuth not configured).';
+      return;
+    }
+    $('#dev-signin-container')?.setAttribute('hidden', '');
+
     const continueSetup = () => {
       if (!window.google?.accounts?.id) {
         $('#auth-status').textContent = 'Google sign-in could not load. Refresh and try again.';
@@ -107,8 +256,9 @@ async function initializeGoogleSignIn() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ credential }),
             });
-            renderProfile(profile);
+            renderSignedInUI(profile);
             hideAuthGate();
+            showToast('Signed in with Google.');
             await loadData();
           } catch (error) {
             showAuthGate(error.message || 'Google sign-in could not be verified. Please try again.');

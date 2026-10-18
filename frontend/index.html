@@ -12,13 +12,18 @@
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <div class="auth-gate" id="auth-gate" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+    <div class="auth-gate" id="auth-gate" role="dialog" aria-modal="true" aria-labelledby="auth-title" hidden>
       <div class="auth-card">
+        <button type="button" class="auth-gate-close" id="auth-gate-close" aria-label="Close" title="Browse in guest mode">✕</button>
         <div class="auth-brand-mark">D</div>
         <p class="auth-eyebrow">DARKOPS · OPERATIONS INTELLIGENCE</p>
         <h1 id="auth-title">Sign in to continue</h1>
-        <p class="auth-description">Use your Google account to open the workspace. Your Google profile name will appear automatically after sign-in.</p>
+        <p class="auth-description" id="auth-desc">Use your Google account to open the workspace. Your Google profile name will appear automatically after sign-in.</p>
         <div id="google-signin-button"></div>
+        <div id="dev-signin-container" hidden>
+          <button type="button" class="dev-signin-btn" id="dev-signin-button"><span>⚡</span> Sign in as Operations Lead (Dev Demo)</button>
+        </div>
+        <button type="button" class="guest-continue-btn" id="guest-continue-button">Continue in Guest Mode</button>
         <p class="auth-status" id="auth-status" role="status" aria-live="polite">Continue securely with Google.</p>
       </div>
     </div>
@@ -52,8 +57,11 @@
 
         <div class="sidebar-bottom">
           <div class="help-card"><span class="help-spark">✳</span><strong>Make every unit count.</strong><p>Turn store signals into better decisions.</p><a href="#how-it-works">How DarkOps works <span>↗</span></a></div>
-          <div class="profile-button" id="profile-button"><span class="profile-avatar">GU</span><span class="profile-copy"><strong>Google User</strong><small>Not signed in</small></span><span class="profile-more">···</span></div>
-          <button class="profile-signout" id="sign-out-button" type="button">Sign out</button>
+          <div class="profile-button" id="profile-button" role="button" tabindex="0" title="Profile options"><span class="profile-avatar" id="sidebar-avatar">OL</span><span class="profile-copy"><strong id="sidebar-name">Operations Lead</strong><small id="sidebar-email">ops@darkops.internal</small></span><span class="profile-more">···</span></div>
+          <div class="auth-actions-wrap">
+            <button class="profile-signout" id="sign-out-button" type="button">Sign out</button>
+            <button class="profile-signin" id="sign-in-button" type="button" hidden>Sign in with Google</button>
+          </div>
           <div class="sidebar-footer"><span class="status-dot"></span> All systems operational</div>
         </div>
       </aside>
@@ -63,11 +71,23 @@
           <div class="breadcrumbs"><span>Workspace</span><span class="crumb-sep">/</span><strong id="breadcrumb-current">Overview</strong></div>
           <div class="topbar-actions">
             <span class="demo-pill"><span></span> DEMO DATA</span><span class="cloud-pill" id="gcp-pill">GCP not configured</span>
+            <span class="auth-pill signed-in" id="auth-status-pill"><span class="status-dot" id="auth-dot"></span><span id="auth-status-text">Signed in</span></span>
+            <button type="button" class="topbar-signin-btn" id="topbar-signin-btn" hidden>Sign in</button>
             <button class="icon-button" aria-label="Notifications" id="notification-button"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M15.5 7.8a5.5 5.5 0 0 0-11 0c0 6-2 6-2 7.2h15c0-1.2-2-1.2-2-7.2ZM8 17h4"/></svg><i></i></button>
             <div class="top-divider"></div>
-            <button class="top-user"><span class="profile-avatar small">SK</span><svg class="chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button>
+            <button class="top-user"><span class="profile-avatar small" id="top-avatar">OL</span><svg class="chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button>
           </div>
         </header>
+
+        <div class="signed-out-banner" id="signed-out-banner" hidden>
+          <div class="signed-out-banner-info">
+            <span class="signed-out-badge">SIGNED OUT</span>
+            <span class="signed-out-banner-text">You are currently signed out. Workspace is active in guest view mode. Sign in with Google to enable audit logging and cluster write actions.</span>
+          </div>
+          <div class="signed-out-banner-actions">
+            <button type="button" class="banner-signin-btn" id="banner-signin-btn">Sign in with Google</button>
+          </div>
+        </div>
 
         <section class="page-wrap" id="overview">
           <div class="page-heading">
