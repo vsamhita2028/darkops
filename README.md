@@ -8,6 +8,12 @@ The demo uses fictional Bengaluru operations data. It brings deterministic calcu
 
 > **Demo data:** Stores, products, events, amounts, customer claims, actions, and follow-up outcomes are synthetic. DarkOps is not connected to a live retailer or delivery network.
 
+## Video demonstration
+
+[Watch or download the 3-minute 30-second demo](docs/demo/DarkOps_Demo.mp4) · [Captions](docs/demo/captions.srt) · [Transcript](docs/demo/transcript.md)
+
+The narrated video demonstrates the working dashboard, investigation workflow, live Gemini analysis, photo forensics, duplicate-photo detection, simulated follow-up, and report export. The MP4 is included in this repository (1080p, approximately 9 MB). If GitHub does not show an inline player, use **View raw** or **Download** to open it.
+
 ## From signal to follow-up
 
 1. **Spot an unusual pattern.** The dashboard summarizes loss, open cases, waste rate, and stock nearing expiry. Cases link signals to the store and product involved.
