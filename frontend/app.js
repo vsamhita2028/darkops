@@ -397,7 +397,7 @@ function renderStores() {
     const initialClass = ({ 'HSR Layout': 'initial-rose', Koramangala: 'initial-lilac', Whitefield: 'initial-blue', Indiranagar: 'initial-green' })[store.name] || 'initial-green';
     const trendClass = store.change > 0 ? 'up' : 'down';
     const barClass = store.waste >= 4 ? 'bar-high' : store.waste >= 3.3 ? 'bar-warn' : '';
-    return `<div class="store-row"><div class="store-initial ${initialClass}">${esc(store.name.charAt(0))}</div><div class="store-name"><strong>${esc(store.name)}</strong><span>${esc(store.code)}</span></div><div class="store-rate"><strong>${Number(store.waste).toFixed(1)}%</strong><span class="trend ${trendClass} tiny">${store.change > 0 ? '↑' : '↓'} ${Math.abs(store.change).toFixed(1)}%</span></div><div class="store-bar"><i class="${barClass}" style="width:${Math.min(100, (store.waste / max) * 100)}%"></i></div></div>`;
+    return `<div class="store-row" data-store-name="${esc(store.name)}" style="cursor:pointer;" title="Click to view all store telemetry and metrics"><div class="store-initial ${initialClass}">${esc(store.name.charAt(0))}</div><div class="store-name"><strong>${esc(store.name)}</strong><span>${esc(store.code)}</span></div><div class="store-rate"><strong>${Number(store.waste).toFixed(1)}%</strong><span class="trend ${trendClass} tiny">${store.change > 0 ? '↑' : '↓'} ${Math.abs(store.change).toFixed(1)}%</span></div><div class="store-bar"><i class="${barClass}" style="width:${Math.min(100, (store.waste / max) * 100)}%"></i></div></div>`;
   }).join('');
 }
 
@@ -700,13 +700,240 @@ function setupWorkspaceSwitcherEvents() {
       toggleDropdown(false);
       const hiwModal = $('#how-it-works-modal');
       if (hiwModal) hiwModal.hidden = true;
+      closeStoresModal();
     }
+  });
+}
+
+const BENGALURU_STORES = [
+  {
+    name: 'HSR Layout',
+    code: 'BLR-01',
+    initialClass: 'initial-rose',
+    waste: 2.8,
+    change: -0.4,
+    loss: 28400,
+    status: 'Healthy Operations',
+    statusClass: 'normal',
+    focus: 'Dairy chillers & milk rotation'
+  },
+  {
+    name: 'Koramangala',
+    code: 'BLR-02',
+    initialClass: 'initial-lilac',
+    waste: 3.4,
+    change: 0.7,
+    loss: 31200,
+    status: 'Elevated Variance',
+    statusClass: 'warn',
+    focus: 'Inventory variance & morning intake audit'
+  },
+  {
+    name: 'Whitefield',
+    code: 'BLR-03',
+    initialClass: 'initial-blue',
+    waste: 2.1,
+    change: -0.2,
+    loss: 10300,
+    status: 'Top Performer',
+    statusClass: 'star',
+    focus: 'Prepared meal shelf-life & salads'
+  },
+  {
+    name: 'Indiranagar',
+    code: 'BLR-04',
+    initialClass: 'initial-green',
+    waste: 4.1,
+    change: 1.2,
+    loss: 42100,
+    status: 'Produce Alert',
+    statusClass: 'alert',
+    focus: 'Tomato spoilage spike · Cold storage fan (DO-2048)',
+    featuredIssue: 'DO-2048'
+  }
+];
+
+function renderStoresModalContent() {
+  const grid = $('#stores-modal-grid');
+  if (!grid) return;
+
+  const avgWaste = state.overview?.metrics?.waste_rate ?? 3.2;
+  const wasteEl = $('#modal-network-waste');
+  if (wasteEl) wasteEl.textContent = `${Number(avgWaste).toFixed(1)}%`;
+
+  const lossEl = $('#modal-network-loss');
+  if (lossEl) lossEl.textContent = '₹ 1,12,000';
+
+  const casesEl = $('#modal-network-cases');
+  if (casesEl) casesEl.innerHTML = `${state.issues?.length || 5} <small>cases</small>`;
+
+  grid.innerHTML = BENGALURU_STORES.map((store) => {
+    const liveStore = state.overview?.stores?.find(s => s.code === store.code || s.name === store.name);
+    const waste = liveStore ? liveStore.waste : store.waste;
+    const change = liveStore ? liveStore.change : store.change;
+    const loss = liveStore ? liveStore.loss : store.loss;
+    const isSelected = state.store === store.name;
+    const storeIssues = state.issues?.filter(i => i.store === store.name || i.store_code === store.code) || [];
+    const issueCount = storeIssues.length || (store.featuredIssue ? 1 : 0);
+
+    const trendText = change > 0 ? `↑ ${Math.abs(change).toFixed(1)}%` : `↓ ${Math.abs(change).toFixed(1)}%`;
+    const trendColor = change > 0 ? '#bc5540' : '#386d45';
+    const isAlert = store.statusClass === 'alert';
+
+    return `
+      <article class="store-modal-card ${isAlert ? 'alert-card' : ''} ${isSelected ? 'selected-card' : ''}">
+        <div class="store-modal-card-top">
+          <div class="store-card-info">
+            <div class="store-card-avatar ${store.initialClass}">${esc(store.name.charAt(0))}</div>
+            <div class="store-card-name">
+              <strong>${esc(store.name)}</strong>
+              <span>${esc(store.code)} · Bengaluru Hub</span>
+            </div>
+          </div>
+          <span class="store-status-pill ${store.statusClass}">● ${esc(store.status)}</span>
+        </div>
+
+        <div class="store-card-metrics">
+          <div class="store-metric-col">
+            <span>Waste Rate</span>
+            <strong>${Number(waste).toFixed(1)}% <span style="font-size:9px; color:${trendColor}; font-weight:600;">${trendText}</span></strong>
+          </div>
+          <div class="store-metric-col">
+            <span>Identified Loss</span>
+            <strong>₹ ${Number(loss).toLocaleString('en-IN')}</strong>
+          </div>
+          <div class="store-metric-col">
+            <span>Open Cases</span>
+            <strong>${issueCount} <span style="font-size:9px; color:#78867a; font-weight:500;">active</span></strong>
+          </div>
+        </div>
+
+        <div class="store-card-focus">
+          <span>🎯 Focus:</span>
+          <strong>${esc(store.focus)}</strong>
+        </div>
+
+        <div class="store-card-actions">
+          <button type="button" class="store-action-btn ${isSelected ? 'primary' : ''}" data-select-store="${esc(store.name)}">
+            ${isSelected ? '✓ Currently Filtered' : `Filter to ${esc(store.name)}`}
+          </button>
+          ${store.featuredIssue ? `
+            <button type="button" class="store-action-btn danger" data-open-issue="${esc(store.featuredIssue)}" title="Open investigation DO-2048">
+              See Investigation (${esc(store.featuredIssue)}) →
+            </button>
+          ` : ''}
+        </div>
+      </article>
+    `;
+  }).join('');
+}
+
+function openStoresModal() {
+  const modal = $('#stores-modal');
+  if (!modal) return;
+  renderStoresModalContent();
+  modal.hidden = false;
+  document.body.style.overflow = 'hidden';
+}
+
+function closeStoresModal() {
+  const modal = $('#stores-modal');
+  if (!modal) return;
+  modal.hidden = true;
+  document.body.style.overflow = '';
+}
+
+function filterToStore(storeName) {
+  const filterSelect = $('#store-filter');
+  if (filterSelect) {
+    filterSelect.value = storeName;
+    filterSelect.dispatchEvent(new Event('change'));
+  }
+  $$('.cluster-store-btn').forEach((btn) => {
+    btn.classList.toggle('active', (btn.dataset.store || '') === storeName);
+  });
+  const storesSub = $('#current-cluster-stores');
+  if (storesSub) {
+    storesSub.textContent = storeName ? `${storeName} (Selected)` : '4 active stores';
+  }
+
+  closeStoresModal();
+  showToast(`Workspace filtered to ${storeName}`);
+}
+
+function resetToAllStores() {
+  const filterSelect = $('#store-filter');
+  if (filterSelect) {
+    filterSelect.value = '';
+    filterSelect.dispatchEvent(new Event('change'));
+  }
+  $$('.cluster-store-btn').forEach((btn) => {
+    btn.classList.toggle('active', !(btn.dataset.store || ''));
+  });
+  const storesSub = $('#current-cluster-stores');
+  if (storesSub) {
+    storesSub.textContent = '4 active stores';
+  }
+
+  closeStoresModal();
+  showToast('Workspace reset to all Bengaluru stores');
+}
+
+function setupStoresModalEvents() {
+  $('#view-all-stores-btn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    openStoresModal();
+  });
+  $('#store-options-btn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    openStoresModal();
+  });
+  $('#store-list')?.addEventListener('click', (e) => {
+    const row = e.target.closest('.store-row');
+    if (row) {
+      openStoresModal();
+    }
+  });
+  document.addEventListener('click', (e) => {
+    const storeLink = e.target.closest('a[href="#stores"]');
+    if (storeLink) {
+      e.preventDefault();
+      openStoresModal();
+    }
+  });
+
+  $('#stores-modal-close')?.addEventListener('click', closeStoresModal);
+  $('#stores-modal-done-btn')?.addEventListener('click', closeStoresModal);
+  $('#stores-modal')?.addEventListener('click', (e) => {
+    if (e.target === $('#stores-modal')) closeStoresModal();
+  });
+  $('#stores-modal-grid')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-select-store]');
+    if (btn) {
+      filterToStore(btn.dataset.selectStore);
+    }
+  });
+  $('#modal-show-all-btn')?.addEventListener('click', () => {
+    resetToAllStores();
   });
 }
 
 function setupEvents() {
   setupHowItWorksEvents();
   setupWorkspaceSwitcherEvents();
+  setupStoresModalEvents();
+
+  // Handle "See investigation →" button in insight banner or any [data-open-issue]
+  document.addEventListener('click', (event) => {
+    const openBtn = event.target.closest('.insight-link, [data-open-issue]');
+    if (openBtn) {
+      event.preventDefault();
+      const issueId = openBtn.dataset.openIssue || 'DO-2048';
+      closeStoresModal();
+      openIssue(issueId);
+    }
+  });
+
   $$('.queue-tab').forEach((tab) => tab.addEventListener('click', () => setCategory(tab.dataset.category)));
   $('#issues-body').addEventListener('click', (event) => {
     if (event.target.closest('input[type="checkbox"]')) { event.stopPropagation(); return; }

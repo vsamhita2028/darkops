@@ -78,6 +78,58 @@
       </div>
     </div>
 
+    <div class="stores-modal" id="stores-modal" role="dialog" aria-modal="true" aria-labelledby="stores-modal-title" hidden>
+      <div class="stores-modal-card">
+        <button type="button" class="stores-modal-close" id="stores-modal-close" aria-label="Close store telemetry modal">✕</button>
+        <div class="stores-modal-header">
+          <div class="stores-modal-brand-mark">🏪</div>
+          <div>
+            <p class="stores-modal-eyebrow">CLUSTER TELEMETRY · BENGALURU NETWORK</p>
+            <h2 id="stores-modal-title">All Stores Performance</h2>
+            <p class="stores-modal-subtitle">Comparative live telemetry, waste ratios, identified loss, and open investigation cases across your 4 active dark stores.</p>
+          </div>
+        </div>
+
+        <div class="stores-cluster-kpis">
+          <div class="cluster-kpi-item">
+            <span class="kpi-label">Active Dark Stores</span>
+            <strong class="kpi-val">4 <small>operating</small></strong>
+            <span class="kpi-sub"><i class="status-dot"></i> 100% online</span>
+          </div>
+          <div class="cluster-kpi-item">
+            <span class="kpi-label">Cluster Waste Rate</span>
+            <strong class="kpi-val" id="modal-network-waste">3.2%</strong>
+            <span class="kpi-sub">Benchmark: &lt; 2.5%</span>
+          </div>
+          <div class="cluster-kpi-item">
+            <span class="kpi-label">Month Loss Identified</span>
+            <strong class="kpi-val" id="modal-network-loss">₹ 1,12,000</strong>
+            <span class="kpi-sub">Across 4 locations</span>
+          </div>
+          <div class="cluster-kpi-item">
+            <span class="kpi-label">Active Investigations</span>
+            <strong class="kpi-val" id="modal-network-cases">5 <small>cases</small></strong>
+            <span class="kpi-sub">2 require attention</span>
+          </div>
+        </div>
+
+        <div class="stores-modal-grid" id="stores-modal-grid">
+          <!-- Populated dynamically by app.js -->
+        </div>
+
+        <div class="stores-modal-footer">
+          <div class="stores-modal-note">
+            <span class="expansion-badge">ROADMAP · FUTURE WORK</span>
+            <span>Mumbai (BOM) &amp; Delhi-NCR (DEL) clusters are scheduled for Q1 expansion.</span>
+          </div>
+          <div class="stores-modal-actions">
+            <button type="button" class="button button-light" id="modal-show-all-btn">Reset to All Stores</button>
+            <button type="button" class="button button-dark" id="stores-modal-done-btn">Done</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="app-shell">
       <aside class="sidebar">
         <a class="brand" href="#overview" aria-label="DarkOps home">
@@ -216,7 +268,7 @@
             <div class="heading-actions"><label class="select-wrap"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 18s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10Z"/><circle cx="10" cy="8" r="2"/></svg><select id="store-filter" aria-label="Filter by store"><option value="">All stores</option><option>HSR Layout</option><option>Koramangala</option><option>Whitefield</option><option>Indiranagar</option></select><span class="select-chevron">⌄</span></label><button class="button button-dark" id="export-button"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v9m0 0 3.5-3.5M10 12 6.5 8.5M4 13v3h12v-3"/></svg> Export report</button></div>
           </div>
 
-          <div class="insight-banner"><div class="insight-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3m0 12v3m9-9h-3M6 12H3m15.36-6.36-2.12 2.12M7.76 16.24l-2.12 2.12m12.72 0-2.12-2.12M7.76 7.76 5.64 5.64"/><circle cx="12" cy="12" r="4"/></svg></div><div class="insight-copy"><strong>One thing to look at today</strong><span>Fresh produce waste is trending <b>28% higher</b> this week, mostly at Indiranagar.</span></div><button class="insight-link" data-open-issue="DO-2048">See investigation <span>→</span></button><button class="banner-close" aria-label="Dismiss insight">×</button></div>
+          <div class="insight-banner"><div class="insight-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3m0 12v3m9-9h-3M6 12H3m15.36-6.36-2.12 2.12M7.76 16.24l-2.12 2.12m12.72 0-2.12-2.12M7.76 7.76 5.64 5.64"/><circle cx="12" cy="12" r="4"/></svg></div><div class="insight-copy"><strong>One thing to look at today</strong><span>Fresh produce waste is trending <b>28% higher</b> this week, mostly at Indiranagar.</span></div><button type="button" class="insight-link" id="insight-investigation-btn" data-open-issue="DO-2048">See investigation <span>→</span></button><button class="banner-close" aria-label="Dismiss insight">×</button></div>
 
           <div class="section-head metrics-head"><div><h2>Operations snapshot</h2><p id="metric-source-note">Sample operations data · case metrics use investigations; waste and expiry use operations tables</p></div><span class="updated-label"><span class="live-dot"></span> Updated just now</span></div>
 
@@ -235,14 +287,14 @@
             </section>
 
             <section class="panel store-panel">
-              <div class="panel-heading"><div><h2>Store performance</h2><p>Waste rate by location</p></div><button class="more-button" aria-label="More store options">···</button></div>
+              <div class="panel-heading"><div><h2>Store performance</h2><p>Waste rate by location</p></div><button type="button" class="more-button" id="store-options-btn" aria-label="More store options" title="View all store metrics">···</button></div>
               <div class="store-list" id="store-list">
                 <div class="store-row"><div class="store-initial initial-rose">H</div><div class="store-name"><strong>HSR Layout</strong><span>BLR-01</span></div><div class="store-rate"><strong>2.8%</strong><span class="trend down tiny">↓ 0.4%</span></div><div class="store-bar"><i style="width:56%"></i></div></div>
                 <div class="store-row"><div class="store-initial initial-lilac">K</div><div class="store-name"><strong>Koramangala</strong><span>BLR-02</span></div><div class="store-rate"><strong>3.4%</strong><span class="trend up tiny">↑ 0.7%</span></div><div class="store-bar"><i class="bar-warn" style="width:68%"></i></div></div>
                 <div class="store-row"><div class="store-initial initial-blue">W</div><div class="store-name"><strong>Whitefield</strong><span>BLR-03</span></div><div class="store-rate"><strong>2.1%</strong><span class="trend down tiny">↓ 0.2%</span></div><div class="store-bar"><i style="width:42%"></i></div></div>
                 <div class="store-row"><div class="store-initial initial-green">I</div><div class="store-name"><strong>Indiranagar</strong><span>BLR-04</span></div><div class="store-rate"><strong>4.1%</strong><span class="trend up tiny">↑ 1.2%</span></div><div class="store-bar"><i class="bar-high" style="width:82%"></i></div></div>
               </div>
-              <div class="store-panel-foot"><span>Network average</span><strong>3.2%</strong><a href="#stores">View all stores <b>→</b></a></div>
+              <div class="store-panel-foot"><span>Network average</span><strong>3.2%</strong><button type="button" class="view-stores-link" id="view-all-stores-btn">View all stores <b>→</b></button></div>
           </section>
           </div>
 
@@ -324,6 +376,6 @@
     </aside>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="/app.js?v=20261018-forensic-intake" defer></script>
+    <script src="/app.js?v=20261018-stores-insight" defer></script>
   </body>
 </html>

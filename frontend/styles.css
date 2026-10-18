@@ -182,3 +182,58 @@ button.workspace-switcher:hover{background:#f6f9f3;border-color:#d5ddd3}
 .hiw-highlight-box p{margin:0;font-size:11px;color:#4f6254;line-height:1.5}
 .hiw-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 @media(max-width:700px){.hiw-grid{grid-template-columns:1fr}.hiw-card{padding:24px 18px}}
+
+/* All Stores Performance Modal */
+.stores-modal{position:fixed;inset:0;z-index:10001;display:grid;place-items:center;padding:20px;background:rgba(17,26,20,.65);backdrop-filter:blur(8px)}
+.stores-modal[hidden]{display:none!important}
+.stores-modal-card{position:relative;width:min(96vw,840px);max-height:90vh;overflow-y:auto;background:#fff;border:1px solid #dbe2d7;border-radius:18px;box-shadow:0 24px 80px rgba(14,30,19,.28);padding:30px 28px 24px}
+.stores-modal-close{position:absolute;top:16px;right:16px;width:30px;height:30px;border:0;background:#f1f4ed;color:#59675d;border-radius:50%;font-size:13px;cursor:pointer;display:grid;place-items:center;transition:background .15s}
+.stores-modal-close:hover{background:#e2e8dc;color:#1c2822}
+.stores-modal-header{display:flex;align-items:flex-start;gap:14px;margin-bottom:20px}
+.stores-modal-brand-mark{width:46px;height:46px;border-radius:12px;background:#eff6eb;display:grid;place-items:center;font-size:24px;flex-shrink:0}
+.stores-modal-eyebrow{margin:0 0 4px;font-size:9px;font-weight:800;letter-spacing:1.2px;color:#78867b}
+.stores-modal-header h2{margin:0 0 6px;font-family:Manrope,sans-serif;font-size:22px;color:#1e2923;font-weight:800}
+.stores-modal-subtitle{margin:0;font-size:12px;color:#6b7970;line-height:1.5}
+.stores-cluster-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;background:#f7f9f5;border:1px solid #e5ede2;border-radius:12px;padding:12px 14px;margin-bottom:20px}
+.cluster-kpi-item{display:flex;flex-direction:column;gap:3px}
+.kpi-label{font-size:9px;font-weight:700;color:#7b887d;letter-spacing:.3px}
+.kpi-val{font-family:Manrope,sans-serif;font-size:17px;font-weight:800;color:#1f2b24;line-height:1.15}
+.kpi-val small{font-size:10px;font-weight:500;color:#728175}
+.kpi-sub{font-size:8.5px;color:#849386;display:flex;align-items:center;gap:4px}
+.stores-modal-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:20px}
+.store-modal-card{background:#fff;border:1px solid #e5ece0;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px;transition:border-color .15s,box-shadow .15s}
+.store-modal-card:hover{border-color:#cbd8c4;box-shadow:0 4px 14px rgba(23,40,27,.06)}
+.store-modal-card.alert-card{border-color:#f0d5cc;background:#fdfaf9}
+.store-modal-card.selected-card{border-color:#4a7951;background:#f7faf5}
+.store-modal-card-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.store-card-info{display:flex;align-items:center;gap:10px}
+.store-card-avatar{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;font-size:11px;font-weight:800}
+.store-card-name strong{display:block;font-size:13px;font-weight:700;color:#1f2a24}
+.store-card-name span{font-size:9px;color:#859187;font-weight:600}
+.store-status-pill{font-size:8.5px;font-weight:700;padding:3px 8px;border-radius:6px}
+.store-status-pill.normal{background:#ebf5e7;color:#386d45}
+.store-status-pill.warn{background:#fef5e7;color:#ab7323}
+.store-status-pill.alert{background:#fdeee9;color:#bc5540}
+.store-status-pill.star{background:#eef3fc;color:#2b61b8}
+.store-card-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;background:#f8faf6;border:1px solid #ebf1e7;border-radius:8px;padding:9px 10px}
+.store-metric-col{display:flex;flex-direction:column;gap:2px}
+.store-metric-col span{font-size:8px;color:#869288;font-weight:600}
+.store-metric-col strong{font-family:Manrope,sans-serif;font-size:13px;font-weight:800;color:#243228}
+.store-card-focus{font-size:9.5px;color:#5c6c60;background:#fff;border:1px dashed #d7e2d2;border-radius:6px;padding:6px 10px;display:flex;align-items:center;gap:6px}
+.store-card-focus strong{color:#233428}
+.store-card-actions{display:flex;align-items:center;gap:8px;margin-top:auto}
+.store-action-btn{flex:1;height:32px;border:1px solid #dce4d7;background:#fff;border-radius:6px;font-size:9.5px;font-weight:700;color:#38493d;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px;transition:background .12s,border-color .12s}
+.store-action-btn:hover{background:#f2f6ee;border-color:#c7d5c0;color:#1f2f24}
+.store-action-btn.primary{background:#2b5538;color:#fff;border-color:#2b5538}
+.store-action-btn.primary:hover{background:#20442c;border-color:#20442c}
+.store-action-btn.danger{background:#fdf0eb;color:#b75240;border-color:#f1d7cd}
+.store-action-btn.danger:hover{background:#fae4dc}
+.stores-modal-footer{display:flex;align-items:center;justify-content:space-between;border-top:1px solid #ebf0e6;padding-top:16px;gap:12px;flex-wrap:wrap}
+.stores-modal-note{display:flex;align-items:center;gap:8px;font-size:9.5px;color:#6e7d72}
+.expansion-badge{font-size:7.5px;font-weight:800;letter-spacing:.5px;background:#ebf0e5;color:#556857;padding:3px 6px;border-radius:4px}
+.stores-modal-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
+.view-stores-link{margin-left:auto;background:none;border:none;color:#48714d;font-size:9px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:3px;padding:0;font-family:inherit}
+.view-stores-link:hover{color:#27502c;text-decoration:underline}
+.view-stores-link b{font-size:13px;margin-left:3px}
+@media(max-width:720px){.stores-modal-grid{grid-template-columns:1fr}.stores-cluster-kpis{grid-template-columns:repeat(2,1fr)}.stores-modal-card{padding:22px 16px}}
+
