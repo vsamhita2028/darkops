@@ -23,6 +23,12 @@ gcloud storage buckets add-iam-policy-binding "gs://${BUCKET}" \
   --member="serviceAccount:${RUNTIME_SA}" \
   --role=roles/storage.objectViewer
 
+# Cloud Run also accepts uploaded forensic evidence. Keep write access scoped to
+# this bucket, and grant only object creation; existing images remain private.
+gcloud storage buckets add-iam-policy-binding "gs://${BUCKET}" \
+  --member="serviceAccount:${RUNTIME_SA}" \
+  --role=roles/storage.objectCreator
+
 gcloud storage cp frontend/complaints/demo-*.jpg "gs://${BUCKET}/demo/" \
   --cache-control="private,max-age=3600"
 

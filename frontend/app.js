@@ -348,7 +348,11 @@ function filteredIssues() {
     const haystack = `${issue.id} ${issue.title} ${issue.product} ${issue.store} ${issue.category}`.toLowerCase();
     return categoryMatch && storeMatch && severityMatch && haystack.includes(state.query.toLowerCase());
   });
-  rows = [...rows].sort((a, b) => state.sort === 'recent' ? a.id.localeCompare(b.id) : b.impact - a.impact);
+  rows = [...rows].sort((a, b) => {
+    if (state.sort !== 'recent') return Number(b.impact || 0) - Number(a.impact || 0);
+    const dateDelta = Date.parse(b.created_at || '') - Date.parse(a.created_at || '');
+    return (Number.isNaN(dateDelta) ? 0 : dateDelta) || b.id.localeCompare(a.id);
+  });
   return rows;
 }
 
@@ -1353,18 +1357,32 @@ function setupEvents() {
       } else {
         created = await request('/api/issues', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       }
-      const [issues, overview] = await Promise.all([request('/api/issues'), request('/api/overview')]);
-      state.issues = issues;
-      state.overview = overview;
+
+      // A successful create is the point at which we close the form and show
+      // the new record. Refreshes are best-effort: Cloud Run may route them to
+      // another instance, so do not let a refresh failure undo the UI update.
+      state.issues = [created, ...state.issues.filter((issue) => issue.id !== created.id)];
       state.category = 'All';
       state.query = '';
+      state.sort = 'recent';
       $('#search-input').value = '';
+      $('#sort-button').innerHTML = 'Sort: <strong>Most recent</strong><span>⌄</span>';
       renderIssues();
-      renderStores();
       form.reset();
       newInvestigationDialog.close();
       pendingForensicCase = null;
       showToast('Investigation created.');
+      try {
+        const [issues, overview] = await Promise.all([request('/api/issues'), request('/api/overview')]);
+        state.issues = issues.some((issue) => issue.id === created.id)
+          ? issues
+          : [created, ...issues.filter((issue) => issue.id !== created.id)];
+        state.overview = overview;
+        renderIssues();
+        renderStores();
+      } catch (refreshError) {
+        console.warn('Investigation saved, but the list refresh failed.', refreshError);
+      }
       await openIssue(created.id);
     } catch (error) {
       showToast(error.message);

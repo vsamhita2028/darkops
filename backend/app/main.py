@@ -368,15 +368,45 @@ def bigquery_tables():
 def overview(store: str | None = Query(default=None)):
     result = DATA.overview(store)
     result["source"] = DATA.source
-    filtered = [issue for issue in ISSUES if not store or issue["store"] == store]
+    current_issues = get_current_issues()
+    filtered = [issue for issue in current_issues if not store or issue["store"] == store]
     result["metrics"]["active_cases"] = len([issue for issue in filtered if issue["status"] != "Verified"])
     result["metrics"]["loss_at_risk"] = sum(issue["impact"] for issue in filtered)
     return result
 
 
+def get_current_issues() -> list[dict]:
+    """Return the base cases merged with current Firestore writes.
+
+    Cloud Run can route consecutive requests to different instances, so the
+    process-local ISSUES list cannot be the source of truth for user-created
+    investigations.
+    """
+    rows = [dict(issue) for issue in ISSUES]
+    if not USE_FIRESTORE:
+        return rows
+
+    overrides = load_case_overrides()
+    by_id = {issue["id"]: issue for issue in rows}
+    override_fields = ("status", "action_record", "gemini_investigation", "verified_at", "updated_at", "forensics")
+    for issue_id, saved in overrides.items():
+        existing = by_id.get(issue_id)
+        if existing:
+            for field in override_fields:
+                if field in saved:
+                    existing[field] = saved[field]
+        elif saved.get("created_by_user"):
+            custom_issue = {**saved, "id": issue_id}
+            if saved.get("image_bucket") and saved.get("image_object"):
+                custom_issue["complaint_photo"] = f"/api/issues/{issue_id}/photo"
+            rows.insert(0, custom_issue)
+            by_id[issue_id] = custom_issue
+    return rows
+
+
 @app.get("/api/issues")
 def list_issues(category: str | None = None, store: str | None = None, q: str | None = None):
-    rows = ISSUES
+    rows = get_current_issues()
     if category and category.lower() != "all":
         rows = [issue for issue in rows if issue["category"].lower() == category.lower()]
     if store:
@@ -505,7 +535,7 @@ async def create_forensic_issue(
 
 @app.get("/api/issues/{issue_id}/photo")
 def get_issue_photo(issue_id: str):
-    issue = next((item for item in ISSUES if item["id"] == issue_id), None)
+    issue = next((item for item in get_current_issues() if item["id"] == issue_id), None)
     if not issue:
         raise HTTPException(status_code=404, detail="Investigation not found")
     if issue.get("image_bucket") and issue.get("image_object"):
@@ -523,7 +553,7 @@ def get_issue_photo(issue_id: str):
 
 @app.get("/api/issues/{issue_id}")
 def get_issue(issue_id: str):
-    issue = next((item for item in ISSUES if item["id"] == issue_id), None)
+    issue = next((item for item in get_current_issues() if item["id"] == issue_id), None)
     if issue is None:
         raise HTTPException(status_code=404, detail="Investigation not found")
     return issue

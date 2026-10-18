@@ -6,3 +6,15 @@ __pycache__/
 node_modules/
 dist/
 .pytest_cache/
+
+# Generated presentation files and slide build artifacts
+/.deck-build/
+/output/
+*.ppt
+*.pptx
+*.pptm
+*.odp
+*.key
+*.sldx
+*.potx
+*.ppsx
