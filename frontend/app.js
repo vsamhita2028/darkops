@@ -701,6 +701,7 @@ function setupWorkspaceSwitcherEvents() {
       const hiwModal = $('#how-it-works-modal');
       if (hiwModal) hiwModal.hidden = true;
       closeStoresModal();
+      closeFeatureModal();
     }
   });
 }
@@ -918,10 +919,231 @@ function setupStoresModalEvents() {
   });
 }
 
+const FEATURE_CARDS = {
+  inventory: {
+    icon: '▤',
+    eyebrow: 'ROADMAP · FUTURE WORK · INVENTORY HEALTH',
+    title: 'Inventory Health Architecture',
+    subtitle: '[Future Work] How DarkOps will predict shelf-life decay, reconcile phantom shrink variances, and optimize stock par levels across dark stores.',
+    steps: [
+      {
+        num: '01',
+        icon: '⏱️',
+        title: 'Batch Shelf-Life Tracking',
+        desc: 'Tracks supplier delivery timestamps and FIFO pick velocity at the SKU level. Automatically flags items entering their critical 48-hour spoilage window before markdowns are required.',
+        tag: 'BigQuery Batch Windows'
+      },
+      {
+        num: '02',
+        icon: '⚖️',
+        title: 'Phantom Variance Engine',
+        desc: 'Correlates point-of-sale pick logs, customer return credits, and cycle count discrepancies to identify unrecorded leakage, vendor short-picks, and misbinned inventory.',
+        tag: 'Variance Regression'
+      },
+      {
+        num: '03',
+        icon: '🔄',
+        title: 'Cluster Stock Rebalancing',
+        desc: 'Calculates dynamic replenishment orders and generates inter-store transfer proposals between high-velocity and lagging dark stores in the cluster, preventing stockouts.',
+        tag: 'Automated Par Tuning'
+      }
+    ],
+    highlightTitle: '📌 Planned Roadmap · Future Work',
+    highlightBody: 'This operational capability is planned as upcoming future work. When fully rolled out, it will connect directly with BigQuery daily operations tables, cold-chain temperature telemetry, and automated markdown cadences to arrest wastage before it reaches critical thresholds.',
+    actionText: '📊 View Operations Snapshot',
+    actionNav: 'overview'
+  },
+  waste: {
+    icon: '◉',
+    eyebrow: 'ROADMAP · FUTURE WORK · RECENT LOADS & DEFECTS',
+    title: 'Recent Loads, Waste & Returns Intelligence',
+    subtitle: '[Future Work] How DarkOps will audit incoming supplier shipments, track intake waste spikes, and automates vendor credit recovery.',
+    steps: [
+      {
+        num: '01',
+        icon: '🚚',
+        title: 'Receiving Dock Intake Telemetry',
+        desc: 'Digitizes supplier delivery manifests and logs physical temperatures against purchase orders at the receiving dock, catching supplier temperature breaches immediately.',
+        tag: 'Manifest & PO Ingestion'
+      },
+      {
+        num: '02',
+        icon: '📉',
+        title: 'Defect Categorization & Spoilage Audits',
+        desc: 'Aggregates SKU-level dump tickets (crushed packaging, rot, melting, expired dates) and maps them to supplier lot IDs to distinguish vendor negligence from store handling error.',
+        tag: 'Root-Cause Signal Tree'
+      },
+      {
+        num: '03',
+        icon: '📑',
+        title: 'Automated Vendor Credit Recovery',
+        desc: 'Generates itemized supplier debit memos supported by timestamped photo evidence and BigQuery transaction history, recovering unjustified losses from produce and dairy vendors.',
+        tag: 'Debit Memo Automation'
+      }
+    ],
+    highlightTitle: '📌 Planned Roadmap · Future Work',
+    highlightBody: 'This operational capability is planned as upcoming future work. Intake rejections and customer return complaints will seamlessly link to Gemini 2.5 Flash for packaging OCR, seal defect detection, and vector similarity fraud screening.',
+    actionText: '🔬 Open Photo Forensics Lab',
+    actionNav: 'forensics'
+  },
+  team: {
+    icon: '♙',
+    eyebrow: 'ROADMAP · FUTURE WORK · TEAM & STORE GOVERNANCE',
+    title: 'Team & Dark Store Governance',
+    subtitle: '[Future Work] How DarkOps will assign investigation ownership, enforce shift accountability, and orchestrates store managers across clusters.',
+    steps: [
+      {
+        num: '01',
+        icon: '👥',
+        title: 'Role-Based Cluster Access',
+        desc: 'Partitions picker, inventory specialist, and shift manager permissions by dark store (BLR-01 through BLR-04) while granting operations leads unified cluster governance.',
+        tag: 'Google Cloud IAM & OAuth'
+      },
+      {
+        num: '02',
+        icon: '🎯',
+        title: 'Shift Incident Ownership & SLAs',
+        desc: 'Dispatches critical root-cause action items (e.g., cold storage fan maintenance, milk rotation protocol) directly to active shift supervisors with automated SLA tracking.',
+        tag: 'Closed-Loop SLA Tracking'
+      },
+      {
+        num: '03',
+        icon: '🏆',
+        title: 'Cluster Operational Leaderboard',
+        desc: 'Benchmarks dark stores by waste percentage, shrink recovery, and audit resolution velocity to incentivize operational discipline and cross-store best practice adoption.',
+        tag: 'Performance Telemetry'
+      }
+    ],
+    highlightTitle: '📌 Planned Roadmap · Future Work',
+    highlightBody: 'This operational capability is planned as upcoming future work. The Bengaluru cluster (4 stores) is live in prototype; multi-tenant store assignment, supervisor shift SLAs, and upcoming regional clusters (Mumbai, Delhi-NCR) are planned for enterprise rollout.',
+    actionText: '🏪 Open Store Telemetry',
+    actionNav: 'stores'
+  },
+  settings: {
+    icon: '⚙',
+    eyebrow: 'ROADMAP · FUTURE WORK · SETTINGS & INTEGRATIONS',
+    title: 'Settings & Enterprise Integrations',
+    subtitle: '[Future Work] How DarkOps will integrate your WMS, ERP, cloud data warehouses, and Vertex AI models into a unified intelligence hub.',
+    steps: [
+      {
+        num: '01',
+        icon: '🔌',
+        title: 'WMS & ERP Data Pipelines',
+        desc: 'Standardized bi-directional event pipelines for SAP, Unicommerce, Increff, and custom proprietary dark store inventory management platforms.',
+        tag: 'Bi-directional Event Bus'
+      },
+      {
+        num: '02',
+        icon: '☁️',
+        title: 'Google Cloud Infrastructure Sync',
+        desc: 'Configures BigQuery streaming buffer ingestion, Cloud Storage photo audit buckets, and Cloud Firestore case state persistence with zero local storage retention.',
+        tag: 'BigQuery · Cloud Storage · Firestore'
+      },
+      {
+        num: '03',
+        icon: '🤖',
+        title: 'Vertex AI Model Parameters',
+        desc: 'Custom tuning controls for Gemini 2.5 Flash temperature, confidence thresholds, perceptual-hash vector distance cutoffs, and automated recommendation triggers.',
+        tag: 'Vertex AI Tuning Controls'
+      }
+    ],
+    highlightTitle: '📌 Planned Roadmap · Future Work',
+    highlightBody: 'This operational capability is planned as upcoming future work. Enterprise configurations for WMS webhooks (SAP, Increff, Unicommerce), automated BigQuery streaming ingestion, and Vertex AI confidence parameter tuning are slated for future releases.',
+    actionText: '☷ View Active Investigations',
+    actionNav: 'investigations'
+  }
+};
+
+function openFeatureModal(featureKey) {
+  const data = FEATURE_CARDS[featureKey];
+  if (!data) return;
+
+  const modal = $('#feature-info-modal');
+  if (!modal) return;
+
+  const iconEl = $('#fim-icon');
+  if (iconEl) iconEl.textContent = data.icon;
+  const eyebrowEl = $('#fim-eyebrow');
+  if (eyebrowEl) eyebrowEl.textContent = data.eyebrow;
+  const titleEl = $('#fim-title');
+  if (titleEl) titleEl.textContent = data.title;
+  const subtitleEl = $('#fim-subtitle');
+  if (subtitleEl) subtitleEl.textContent = data.subtitle;
+
+  const grid = $('#fim-grid');
+  if (grid) {
+    grid.innerHTML = data.steps.map((s, idx) => `
+      <div class="hiw-step-card">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+          <span class="hiw-step-num" style="margin:0;">${esc(s.num)}</span>
+          <span class="expansion-badge" style="font-size:7px;">Future Work</span>
+        </div>
+        <div class="hiw-step-icon">${esc(s.icon)}</div>
+        <h3>${esc(s.title)}</h3>
+        <p>${esc(s.desc)}</p>
+        <div class="hiw-tag ${idx === 1 ? 'highlight' : ''}">${esc(s.tag)}</div>
+      </div>
+    `).join('');
+  }
+
+  const hlTitle = $('#fim-highlight-title');
+  if (hlTitle) hlTitle.textContent = data.highlightTitle;
+  const hlBody = $('#fim-highlight-body');
+  if (hlBody) hlBody.textContent = data.highlightBody;
+
+  const actionBtn = $('#fim-action-btn');
+  if (actionBtn) {
+    if (data.actionText && data.actionNav) {
+      actionBtn.hidden = false;
+      actionBtn.textContent = data.actionText;
+      actionBtn.onclick = () => {
+        closeFeatureModal();
+        if (data.actionNav === 'stores') {
+          openStoresModal();
+        } else if (data.actionNav === 'forensics') {
+          const item = $('[data-nav="forensics"]');
+          if (item) item.click();
+          else window.location.hash = '#forensics-lab';
+        } else if (data.actionNav === 'investigations') {
+          const item = $('[data-nav="investigations"]');
+          if (item) item.click();
+          else window.location.hash = '#investigations';
+        } else {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      };
+    } else {
+      actionBtn.hidden = true;
+    }
+  }
+
+  modal.hidden = false;
+  document.body.style.overflow = 'hidden';
+}
+
+function closeFeatureModal() {
+  const modal = $('#feature-info-modal');
+  if (!modal) return;
+  modal.hidden = true;
+  document.body.style.overflow = '';
+}
+
+function setupFeatureModalEvents() {
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('#fim-close, #fim-close-btn, [data-close-feature-modal]')) {
+      closeFeatureModal();
+    }
+  });
+  $('#feature-info-modal')?.addEventListener('click', (e) => {
+    if (e.target === $('#feature-info-modal')) closeFeatureModal();
+  });
+}
+
 function setupEvents() {
   setupHowItWorksEvents();
   setupWorkspaceSwitcherEvents();
   setupStoresModalEvents();
+  setupFeatureModalEvents();
 
   // Handle "See investigation →" button in insight banner or any [data-open-issue]
   document.addEventListener('click', (event) => {
@@ -1132,7 +1354,11 @@ function setupEvents() {
   }));
   $$('.nav-item').forEach((item) => item.addEventListener('click', (event) => {
     const target = item.dataset.nav;
-    if (target !== 'overview' && target !== 'investigations' && target !== 'forensics') { event.preventDefault(); showToast(`${item.textContent.trim()} is coming in the next milestone.`); return; }
+    if (FEATURE_CARDS[target]) {
+      event.preventDefault();
+      openFeatureModal(target);
+      return;
+    }
     $$('.nav-item').forEach((nav) => nav.classList.toggle('active', nav === item));
     $('#breadcrumb-current').textContent = target === 'overview' ? 'Overview' : target === 'forensics' ? 'Photo Forensics' : 'Investigations';
     if (target === 'investigations') document.querySelector('#investigations')?.scrollIntoView({ behavior: 'smooth' });
@@ -1142,7 +1368,7 @@ function setupEvents() {
   const initialNav = window.location.hash === '#forensics-lab' ? 'forensics' : window.location.hash === '#investigations' ? 'investigations' : 'overview';
   $$('.nav-item').forEach((item) => item.classList.toggle('active', item.dataset.nav === initialNav));
   $('#breadcrumb-current').textContent = initialNav === 'forensics' ? 'Photo Forensics' : initialNav === 'investigations' ? 'Investigations' : 'Overview';
-  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') { closeDrawer(); $('#severity-popover')?.remove(); } });
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') { closeDrawer(); $('#severity-popover')?.remove(); closeStoresModal(); closeFeatureModal(); } });
 }
 
 let forensicsSamples = [];
