@@ -608,7 +608,7 @@ async function selectSample(sampleId, analyze = true) {
 
   $$('.sample-chip').forEach((c) => c.classList.toggle('active', c.dataset.sampleId === sampleId));
   $('#forensics-display-img').src = sample.url;
-  $('#forensics-img-label').textContent = sample.scenario;
+  $('#forensics-img-label').textContent = `${sample.image_source || 'Demo photo'} · ${sample.scenario}`;
   $('#forensics-product-label').textContent = sample.product;
   $('#forensics-complaint-quote').textContent = `"${sample.complaint_text}"`;
 
