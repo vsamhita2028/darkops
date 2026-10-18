@@ -6,7 +6,7 @@ DarkOps is an operations intelligence prototype for quick-commerce dark stores. 
 
 The demo uses fictional Bengaluru operations data. It brings deterministic calculations together with on-demand Gemini analysis, a photo-forensics workflow, and a recorded follow-up. The aim is to show how a store anomaly can become an evidence-backed case, not to automate real-world decisions without review.
 
-> **Demo data:** Stores, products, events, amounts, customer claims, actions, and follow-up outcomes are synthetic. DarkOps is not connected to a live retailer or delivery network.
+> **Demo data:** DarkOps is not connected to a live retailer or delivery network.
 
 ## Video demonstration
 
