@@ -485,16 +485,45 @@ function setupEvents() {
     if (analyzeButton) analyzeSample(analyzeButton.dataset.analyzeSample);
   });
 
-  // Custom photo upload
+  // Custom photo upload - creates a new distinct complaint entry
   $('#custom-photo-upload')?.addEventListener('change', async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Reset input so user can re-upload if needed
+    event.target.value = '';
+
+    const newSampleId = `sample-custom-${Date.now()}`;
+    const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ');
+    const newSample = {
+      id: newSampleId,
+      title: file.name,
+      scenario: 'Live Customer Upload',
+      image_source: 'Live upload',
+      product: cleanName.charAt(0).toUpperCase() + cleanName.slice(1),
+      complaint_text: 'Custom customer complaint photo uploaded for live Gemini multimodal inspection.',
+      url: URL.createObjectURL(file),
+      file: file,
+      isCustom: true,
+      result: null
+    };
+
+    // Add as a new separate entry in forensicsSamples
+    forensicsSamples.push(newSample);
+    activeSample = newSample;
+
+    // Render chips so the new tab is created and selected
+    renderSampleChips();
+
+    // Scroll to new chip
+    const newChip = $(`[data-sample-id="${newSampleId}"]`);
+    newChip?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'end' });
+
     const displayImg = $('#forensics-display-img');
-    displayImg.src = URL.createObjectURL(file);
-    $('#forensics-img-label').textContent = 'Live Uploaded Photo';
-    $('#forensics-product-label').textContent = file.name;
-    $('#forensics-complaint-quote').textContent = 'Custom customer complaint photo uploaded for live Gemini multimodal inspection.';
+    displayImg.src = newSample.url;
+    $('#forensics-img-label').textContent = 'Live upload · Customer Photo';
+    $('#forensics-product-label').textContent = newSample.product;
+    $('#forensics-complaint-quote').textContent = `"${newSample.complaint_text}"`;
 
     const resultContainer = $('#forensics-result-panel');
     resultContainer.innerHTML = `
@@ -515,10 +544,21 @@ function setupEvents() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || 'Upload failed');
-      renderForensicsPanel(data.forensic_result);
+
+      newSample.result = data.forensic_result;
+      if (data.forensic_result.defect_type && data.forensic_result.defect_type !== 'No Defect Found') {
+        newSample.title = `${data.forensic_result.defect_type}`;
+        renderSampleChips();
+      }
+
+      if (activeSample && activeSample.id === newSampleId) {
+        renderForensicsPanel(data.forensic_result);
+      }
       showToast('Custom photo analyzed by Gemini Flash.');
     } catch (err) {
-      resultContainer.innerHTML = `<div style="color:#bd4444; font-size:10px;">Upload analysis failed: ${esc(err.message)}</div>`;
+      if (activeSample && activeSample.id === newSampleId) {
+        resultContainer.innerHTML = `<div style="color:#bd4444; font-size:10px;">Upload analysis failed: ${esc(err.message)}</div>`;
+      }
     }
   });
 
@@ -594,11 +634,15 @@ function renderSampleChips() {
     'sample-abuse-claim-2': '🚨',
     'sample-no-defect': '🥖'
   };
-  container.innerHTML = forensicsSamples.map((s, idx) => `
-    <button type="button" class="sample-chip ${idx === 0 ? 'active' : ''}" data-sample-id="${esc(s.id)}">
-      <span>${icons[s.id] || '📷'}</span> ${esc(s.title)}
-    </button>
-  `).join('');
+  container.innerHTML = forensicsSamples.map((s, idx) => {
+    const isActive = activeSample ? activeSample.id === s.id : idx === 0;
+    const icon = s.isCustom ? '📸' : (icons[s.id] || '📷');
+    return `
+      <button type="button" class="sample-chip ${isActive ? 'active' : ''} ${s.isCustom ? 'custom-sample-chip' : ''}" data-sample-id="${esc(s.id)}">
+        <span>${icon}</span> ${esc(s.title)}
+      </button>
+    `;
+  }).join('');
 }
 
 async function selectSample(sampleId, analyze = true) {
@@ -613,6 +657,12 @@ async function selectSample(sampleId, analyze = true) {
   $('#forensics-complaint-quote').textContent = `"${sample.complaint_text}"`;
 
   const resultContainer = $('#forensics-result-panel');
+
+  if (sample.result) {
+    renderForensicsPanel(sample.result);
+    return;
+  }
+
   if (!analyze) {
     resultContainer.innerHTML = `
       <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:180px; gap:10px; color:#5c6e61; text-align:center;">
@@ -626,8 +676,15 @@ async function selectSample(sampleId, analyze = true) {
 }
 
 async function analyzeSample(sampleId) {
+  const sample = forensicsSamples.find((s) => s.id === sampleId);
   const resultContainer = $('#forensics-result-panel');
   if (!resultContainer) return;
+
+  if (sample && sample.result) {
+    renderForensicsPanel(sample.result);
+    return;
+  }
+
   resultContainer.innerHTML = `
     <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:180px; gap:8px; color:#5c6e61;">
       <div class="status-dot" style="width:10px; height:10px; background:#4285F4; animation:pulse-red 1s infinite;"></div>
@@ -641,6 +698,7 @@ async function analyzeSample(sampleId) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sample_id: sampleId })
     });
+    if (sample) sample.result = data.forensic_result;
     renderForensicsPanel(data.forensic_result);
   } catch (err) {
     resultContainer.innerHTML = `<div style="color:#bd4444; font-size:10px;">Failed to analyze photo: ${esc(err.message)}</div>`;

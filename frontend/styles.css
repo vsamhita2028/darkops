@@ -83,3 +83,6 @@
 .reasoning-box p,.action-guardrail-box p{overflow-wrap:anywhere}
 .complaint-evidence-panel,.forensics-result-panel{height:100%}
 @media(max-width:610px){.forensics-lab-section{padding:16px 13px}.forensics-lab-head{align-items:flex-start}.upload-btn-row{width:100%}.upload-file-label{justify-content:center;min-height:36px;white-space:normal}.forensics-stage-grid{gap:10px}.complaint-evidence-panel,.forensics-result-panel{padding:11px}.forensics-result-header{align-items:flex-start;gap:8px}.defect-pill{white-space:normal}}
+.sample-chip.custom-sample-chip{border-color:#a8c7fa;background:#f0f6ff;color:#1a73e8}
+.sample-chip.custom-sample-chip:hover{background:#e3effd;border-color:#1a73e8;color:#1557b0}
+.sample-chip.custom-sample-chip.active{background:#1a73e8;border-color:#1a73e8;color:#fff;box-shadow:0 2px 8px rgba(26,115,232,0.25)}
